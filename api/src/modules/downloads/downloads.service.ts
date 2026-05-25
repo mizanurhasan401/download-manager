@@ -1,12 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
-import { MediaType } from '@prisma/client';
+import { JobKind, MediaType } from '@prisma/client';
 import { Request, Response } from 'express';
 import { createReadStream, promises as fs } from 'fs';
 import { StreamableFile } from '@nestjs/common';
 import { QUEUE_NAMES } from '../../common/constants';
 import {
+  BusinessException,
   DownloadNotFoundException,
   DownloadNotReadyException,
 } from '../../common/exceptions/business.exception';
@@ -40,11 +41,21 @@ export class DownloadsService {
       throw new DownloadNotFoundException('Video not found');
     }
 
+    const clip = this.normalizeClipRange(
+      dto.clipStartSeconds,
+      dto.clipEndSeconds,
+      video.duration ?? undefined,
+    );
+
     const job = await this.downloadRepository.create({
       videoId: dto.videoId,
       formatId: dto.formatId,
       quality: dto.quality,
       mediaType: dto.mediaType ?? MediaType.VIDEO,
+      audioBitrate: dto.audioBitrate,
+      clipStartSeconds: clip?.startSec,
+      clipEndSeconds: clip?.endSec,
+      jobKind: clip ? JobKind.CLIP : JobKind.SINGLE,
     });
 
     const payload: DownloadJobPayload = {
@@ -53,6 +64,9 @@ export class DownloadsService {
       formatId: dto.formatId,
       mediaType: dto.mediaType ?? MediaType.VIDEO,
       title: video.title ?? undefined,
+      audioBitrate: dto.audioBitrate,
+      clipStartSeconds: clip?.startSec,
+      clipEndSeconds: clip?.endSec,
     };
 
     const queueJob = await this.downloadQueue.add('process-download', payload, {
@@ -177,6 +191,103 @@ export class DownloadsService {
     response.setHeader('Content-Length', fileSize);
 
     return this.storageService.createReadStream(job.filePath);
+  }
+
+  async retryDownload(id: string) {
+    const job = await this.downloadRepository.findById(id);
+    if (!job) {
+      throw new DownloadNotFoundException();
+    }
+
+    if (!['FAILED', 'CANCELLED'].includes(job.status)) {
+      throw new DownloadNotReadyException(
+        `Only failed or cancelled jobs can be retried (current: ${job.status})`,
+      );
+    }
+
+    if (job.queueJobId) {
+      const previousQueueJob = await this.downloadQueue.getJob(job.queueJobId);
+      if (previousQueueJob) {
+        await previousQueueJob.remove();
+      }
+    }
+
+    const reset = await this.downloadRepository.resetForRetry(id);
+
+    const payload: DownloadJobPayload = {
+      downloadJobId: reset.id,
+      videoUrl: job.video.url,
+      formatId: reset.formatId,
+      mediaType: reset.mediaType,
+      title: job.video.title ?? undefined,
+      audioBitrate: reset.audioBitrate ?? undefined,
+      clipStartSeconds: reset.clipStartSeconds ?? undefined,
+      clipEndSeconds: reset.clipEndSeconds ?? undefined,
+    };
+
+    const queueJob = await this.downloadQueue.add('process-download', payload, {
+      jobId: `${reset.id}:retry:${reset.attemptCount}`,
+      attempts: 3,
+      backoff: { type: 'exponential', delay: 5000 },
+      removeOnComplete: 100,
+      removeOnFail: 50,
+    });
+
+    await this.downloadRepository.markQueued(reset.id, queueJob.id ?? reset.id);
+
+    this.logger.log(
+      `Download job ${reset.id} re-queued (attempt #${reset.attemptCount})`,
+    );
+
+    return {
+      downloadJobId: reset.id,
+      status: 'QUEUED' as const,
+      attempt: reset.attemptCount,
+      message: 'Download job has been re-queued',
+    };
+  }
+
+  private normalizeClipRange(
+    rawStart?: number,
+    rawEnd?: number,
+    videoDuration?: number,
+  ): { startSec: number; endSec: number } | null {
+    const hasStart = typeof rawStart === 'number' && Number.isFinite(rawStart);
+    const hasEnd = typeof rawEnd === 'number' && Number.isFinite(rawEnd);
+
+    if (!hasStart && !hasEnd) return null;
+
+    const startSec = hasStart ? Math.max(0, rawStart as number) : 0;
+    const endSec = hasEnd
+      ? (rawEnd as number)
+      : (videoDuration ?? startSec + 1);
+
+    if (endSec <= startSec) {
+      throw new BusinessException(
+        'Clip end time must be greater than start time',
+      );
+    }
+
+    if (
+      typeof videoDuration === 'number' &&
+      videoDuration > 0 &&
+      endSec > videoDuration + 0.5
+    ) {
+      throw new BusinessException(
+        `Clip end time (${endSec.toFixed(1)}s) exceeds video duration (${videoDuration.toFixed(1)}s)`,
+      );
+    }
+
+    if (
+      typeof videoDuration === 'number' &&
+      videoDuration > 0 &&
+      startSec === 0 &&
+      endSec >= videoDuration - 0.5
+    ) {
+      return null;
+    }
+
+    return { startSec, endSec };
   }
 
   async cancelDownload(id: string) {

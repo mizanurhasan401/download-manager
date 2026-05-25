@@ -54,6 +54,9 @@ export interface StartDownloadPayload {
   formatId: string;
   quality?: string;
   mediaType?: MediaType;
+  audioBitrate?: number;
+  clipStartSeconds?: number;
+  clipEndSeconds?: number;
 }
 
 export interface StartDownloadResult {

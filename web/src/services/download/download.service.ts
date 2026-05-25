@@ -25,6 +25,15 @@ export const downloadService = {
     );
   },
 
+  retryDownload(id: string) {
+    return unwrapApiResponse<{
+      downloadJobId: string;
+      status: string;
+      attempt: number;
+      message: string;
+    }>(apiClient.post(`/downloads/${id}/retry`));
+  },
+
   getHealth() {
     return unwrapApiResponse<HealthCheckResult>(apiClient.get('/health'));
   },

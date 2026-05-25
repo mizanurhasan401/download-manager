@@ -13,6 +13,7 @@ enum VideoProvider {
   INSTAGRAM
   TIKTOK
   VIMEO
+  TWITTER
   OTHER
 }
 
@@ -35,11 +36,43 @@ enum DownloadEventType {
   COMPLETED
   FAILED
   CANCELLED
+  RETRYING
+  RESUMED
 }
 
 enum MediaType {
   VIDEO
   AUDIO
+}
+
+enum AudioFormat {
+  MP3
+  M4A
+  WAV
+}
+
+enum JobKind {
+  SINGLE
+  PLAYLIST_ITEM
+  CLIP
+  AUDIO_EXTRACT
+}
+
+enum PlaylistStatus {
+  PENDING
+  EXTRACTING
+  READY
+  PROCESSING
+  COMPLETED
+  PARTIALLY_COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum SharedLinkVisibility {
+  PUBLIC
+  UNLISTED
+  PASSWORD_PROTECTED
 }
 
 model User {
@@ -48,8 +81,10 @@ model User {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  videos        Video[]
-  downloadJobs  DownloadJob[]
+  videos       Video[]
+  downloadJobs DownloadJob[]
+  playlists    Playlist[]
+  sharedLinks  SharedLink[]
 
   @@map("users")
 }
@@ -97,18 +132,41 @@ model DownloadJob {
   createdAt    DateTime       @default(now()) @map("created_at")
   updatedAt    DateTime       @updatedAt @map("updated_at")
 
+  // Audio extraction
+  audioBitrate Int?         @map("audio_bitrate")
+  audioFormat  AudioFormat? @map("audio_format")
+
+  // Resume support
+  attemptCount    Int       @default(0) @map("attempt_count")
+  lastAttemptAt   DateTime? @map("last_attempt_at")
+  resumable       Boolean   @default(true)
+  partialFilePath String?   @map("partial_file_path")
+  bytesDownloaded BigInt?   @map("bytes_downloaded")
+
+  // Job kind discriminator + clip support
+  jobKind          JobKind @default(SINGLE) @map("job_kind")
+  clipStartSeconds Float?  @map("clip_start_seconds")
+  clipEndSeconds   Float?  @map("clip_end_seconds")
+
+  // Optional parent for playlist children
+  playlistId String?   @map("playlist_id") @db.Uuid
+  playlist   Playlist? @relation(fields: [playlistId], references: [id], onDelete: SetNull)
+
   videoId String @map("video_id") @db.Uuid
   video   Video  @relation(fields: [videoId], references: [id], onDelete: Cascade)
 
   userId String? @map("user_id") @db.Uuid
   user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
 
-  history DownloadHistory[]
+  history     DownloadHistory[]
+  sharedLinks SharedLink[]
 
   @@index([status])
   @@index([videoId])
   @@index([createdAt])
   @@index([queueJobId])
+  @@index([playlistId])
+  @@index([jobKind])
   @@map("download_jobs")
 }
 
@@ -126,4 +184,75 @@ model DownloadHistory {
   @@index([event])
   @@index([createdAt])
   @@map("download_history")
+}
+
+model Playlist {
+  id           String         @id @default(uuid()) @db.Uuid
+  sourceUrl    String         @map("source_url")
+  sourceUrlHash String        @map("source_url_hash")
+  provider     VideoProvider
+  title        String?
+  uploader     String?
+  totalItems   Int            @default(0) @map("total_items")
+  selectedItems Int           @default(0) @map("selected_items")
+  status       PlaylistStatus @default(PENDING)
+  metadata     Json?
+  errorMessage String?        @map("error_message") @db.Text
+  createdAt    DateTime       @default(now()) @map("created_at")
+  updatedAt    DateTime       @updatedAt @map("updated_at")
+  completedAt  DateTime?      @map("completed_at")
+
+  userId String? @map("user_id") @db.Uuid
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  items PlaylistItem[]
+  jobs  DownloadJob[]
+
+  @@unique([sourceUrlHash])
+  @@index([provider])
+  @@index([status])
+  @@index([createdAt])
+  @@map("playlists")
+}
+
+model PlaylistItem {
+  id          String  @id @default(uuid()) @db.Uuid
+  playlistId  String  @map("playlist_id") @db.Uuid
+  position    Int
+  videoUrl    String  @map("video_url")
+  title       String?
+  duration    Int?
+  thumbnailUrl String? @map("thumbnail_url")
+  selected    Boolean @default(true)
+  metadata    Json?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  playlist Playlist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
+
+  @@unique([playlistId, position])
+  @@index([playlistId])
+  @@map("playlist_items")
+}
+
+model SharedLink {
+  id            String               @id @default(uuid()) @db.Uuid
+  token         String               @unique
+  downloadJobId String               @map("download_job_id") @db.Uuid
+  visibility    SharedLinkVisibility @default(PUBLIC)
+  passwordHash  String?              @map("password_hash")
+  expiresAt     DateTime?            @map("expires_at")
+  maxAccesses   Int?                 @map("max_accesses")
+  accessCount   Int                  @default(0) @map("access_count")
+  lastAccessedAt DateTime?           @map("last_accessed_at")
+  revokedAt     DateTime?            @map("revoked_at")
+  createdAt     DateTime             @default(now()) @map("created_at")
+
+  userId String? @map("user_id") @db.Uuid
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  downloadJob DownloadJob @relation(fields: [downloadJobId], references: [id], onDelete: Cascade)
+
+  @@index([downloadJobId])
+  @@index([expiresAt])
+  @@map("shared_links")
 }

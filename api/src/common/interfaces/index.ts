@@ -47,6 +47,9 @@ export interface DownloadJobPayload {
   formatId: string;
   mediaType: string;
   title?: string;
+  audioBitrate?: number;
+  clipStartSeconds?: number;
+  clipEndSeconds?: number;
 }
 
 export interface StorageFileInfo {

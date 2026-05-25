@@ -41,7 +41,16 @@ export class DownloadProcessor extends WorkerHost {
   }
 
   async process(job: Job<DownloadJobPayload>): Promise<void> {
-    const { downloadJobId, videoUrl, formatId, mediaType, title } = job.data;
+    const {
+      downloadJobId,
+      videoUrl,
+      formatId,
+      mediaType,
+      title,
+      audioBitrate,
+      clipStartSeconds,
+      clipEndSeconds,
+    } = job.data;
 
     this.logger.log(`Processing download job ${downloadJobId}`);
 
@@ -57,8 +66,12 @@ export class DownloadProcessor extends WorkerHost {
       'Download processing started',
     );
 
+    const clipRange = this.resolveClipRange(clipStartSeconds, clipEndSeconds);
     const tempDir = this.storageService.getDirectory('TEMP');
-    const safeTitle = sanitizeFileName(title ?? downloadJobId);
+    const baseTitle = sanitizeFileName(title ?? downloadJobId);
+    const safeTitle = clipRange
+      ? `${baseTitle}_clip_${Math.round(clipRange.startSec)}-${Math.round(clipRange.endSec)}`
+      : baseTitle;
     const tempOutput =
       mediaType === MediaType.VIDEO
         ? path.join(tempDir, `${safeTitle}.mp4`)
@@ -105,7 +118,13 @@ export class DownloadProcessor extends WorkerHost {
             );
           }
         },
-        { totalPhases: this.estimateTotalPhases(effectiveFormatId, mediaType as MediaType) },
+        {
+          totalPhases: this.estimateTotalPhases(
+            effectiveFormatId,
+            mediaType as MediaType,
+          ),
+          clip: clipRange ?? undefined,
+        },
       );
 
       let finalPath = downloadResult.filePath;
@@ -175,6 +194,10 @@ export class DownloadProcessor extends WorkerHost {
         finalPath = await this.ffmpegService.convertToAudio(
           finalPath,
           audioPath,
+          {
+            bitrateKbps: audioBitrate ?? 192,
+            format: 'mp3',
+          },
         );
 
         if (finalPath !== downloadResult.filePath) {
@@ -261,5 +284,22 @@ export class DownloadProcessor extends WorkerHost {
   ): number {
     if (mediaType === MediaType.AUDIO) return 1;
     return formatId.includes('+') ? 2 : 1;
+  }
+
+  private resolveClipRange(
+    startSec?: number,
+    endSec?: number,
+  ): { startSec: number; endSec: number } | null {
+    const hasStart = typeof startSec === 'number' && Number.isFinite(startSec);
+    const hasEnd = typeof endSec === 'number' && Number.isFinite(endSec);
+
+    if (!hasStart && !hasEnd) return null;
+
+    const safeStart = hasStart ? Math.max(0, startSec as number) : 0;
+    const safeEnd = hasEnd ? (endSec as number) : safeStart + 1;
+
+    if (safeEnd <= safeStart) return null;
+
+    return { startSec: safeStart, endSec: safeEnd };
   }
 }

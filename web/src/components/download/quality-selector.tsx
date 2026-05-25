@@ -12,12 +12,15 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatBytes } from '@/lib/utils';
+import { AUDIO_BITRATE_OPTIONS } from '@/constants';
 import { useDownloadUiStore } from '@/store/download.store';
 import type { MediaType, VideoFormat, VideoMetadata } from '@/types/api';
 
 interface QualitySelectorProps {
   metadata: VideoMetadata;
 }
+
+const DEFAULT_AUDIO_BITRATE = 192;
 
 function filterFormats(formats: VideoFormat[], mediaType: MediaType): VideoFormat[] {
   if (mediaType === 'VIDEO') {
@@ -64,6 +67,7 @@ export function QualitySelector({ metadata }: QualitySelectorProps) {
         formatId: first.formatId,
         quality: first.quality,
         mediaType,
+        audioBitrate: mediaType === 'AUDIO' ? DEFAULT_AUDIO_BITRATE : undefined,
       });
     }
   }, [metadata.formats, mediaType, selection, setSelection]);
@@ -78,6 +82,7 @@ export function QualitySelector({ metadata }: QualitySelectorProps) {
       formatId: first.formatId,
       quality: first.quality,
       mediaType: nextType,
+      audioBitrate: nextType === 'AUDIO' ? DEFAULT_AUDIO_BITRATE : undefined,
     });
   };
 
@@ -89,8 +94,22 @@ export function QualitySelector({ metadata }: QualitySelectorProps) {
       formatId: format.formatId,
       quality: format.quality,
       mediaType,
+      audioBitrate:
+        mediaType === 'AUDIO'
+          ? (selection?.audioBitrate ?? DEFAULT_AUDIO_BITRATE)
+          : undefined,
     });
   };
+
+  const handleBitrateChange = (value: string) => {
+    if (!selection) return;
+    setSelection({
+      ...selection,
+      audioBitrate: parseInt(value, 10),
+    });
+  };
+
+  const currentBitrate = (selection?.audioBitrate ?? DEFAULT_AUDIO_BITRATE).toString();
 
   return (
     <Card className="border-border/60 bg-card/80">
@@ -126,7 +145,7 @@ export function QualitySelector({ metadata }: QualitySelectorProps) {
             )}
           </TabsContent>
 
-          <TabsContent value="AUDIO">
+          <TabsContent value="AUDIO" className="space-y-4">
             {audioFormats.length === 0 ? (
               <p className="text-sm text-muted-foreground">No audio formats available.</p>
             ) : (
@@ -137,6 +156,24 @@ export function QualitySelector({ metadata }: QualitySelectorProps) {
                 onChange={handleFormatChange}
               />
             )}
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">
+                MP3 bitrate
+              </label>
+              <Select value={currentBitrate} onValueChange={handleBitrateChange}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {AUDIO_BITRATE_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </TabsContent>
         </Tabs>
       </CardContent>

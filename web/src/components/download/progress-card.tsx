@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import { Download, Gauge, Loader2, Timer, XCircle } from 'lucide-react';
+import { Download, Gauge, Loader2, RotateCw, Timer, XCircle } from 'lucide-react';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,7 @@ import { Loading } from '@/components/shared/loading';
 import { ErrorState } from '@/components/shared/error-state';
 import { useDownloadStatus } from '@/features/downloads/hooks/useDownloadStatus';
 import { useDownloadProgressStream } from '@/features/downloads/hooks/useDownloadProgressStream';
+import { useRetryDownload } from '@/features/downloads/hooks/useRetryDownload';
 import {
   formatBytes,
   formatBytesPerSec,
@@ -63,6 +64,7 @@ function resolveDisplayPercent(
 export function ProgressCard({ jobId, onDismiss }: ProgressCardProps) {
   const { data, isLoading, isError, refetch } = useDownloadStatus(jobId);
   const { event: liveEvent, isConnected } = useDownloadProgressStream(jobId);
+  const retry = useRetryDownload();
 
   const isComplete = data?.status === 'COMPLETED';
 
@@ -170,8 +172,23 @@ export function ProgressCard({ jobId, onDismiss }: ProgressCardProps) {
           </div>
         )}
 
-        {isFailed && data.errorMessage && (
-          <p className="text-sm text-destructive">{data.errorMessage}</p>
+        {isFailed && (
+          <div className="space-y-3">
+            {data.errorMessage && (
+              <p className="text-sm text-destructive">{data.errorMessage}</p>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => retry.mutate(jobId)}
+              disabled={retry.isPending}
+            >
+              <RotateCw
+                className={`h-4 w-4 ${retry.isPending ? 'animate-spin' : ''}`}
+              />
+              {retry.isPending ? 'Retrying...' : 'Retry download'}
+            </Button>
+          </div>
         )}
 
         <p className="text-xs text-muted-foreground">

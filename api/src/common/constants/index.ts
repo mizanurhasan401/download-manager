@@ -4,23 +4,9 @@ export const QUEUE_NAMES = {
 
 export const API_PREFIX = 'api/v1';
 
-export const ALLOWED_PROVIDERS = [
-  'youtube.com',
-  'youtu.be',
-  'm.youtube.com',
-  'www.youtube.com',
-  'facebook.com',
-  'www.facebook.com',
-  'fb.watch',
-  'instagram.com',
-  'www.instagram.com',
-  'tiktok.com',
-  'www.tiktok.com',
-  'vm.tiktok.com',
-  'vimeo.com',
-  'www.vimeo.com',
-  'player.vimeo.com',
-] as const;
+import { getAllProviderDomains } from '../providers/provider-registry';
+
+export const ALLOWED_PROVIDERS = getAllProviderDomains();
 
 export const STORAGE_DIRS = {
   VIDEOS: 'videos',

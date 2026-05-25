@@ -7,6 +7,19 @@ import { DownloaderNotAvailableException, StorageException } from '../exceptions
 import { ProcessNotFoundError, spawnProcessSafe } from '../utils/process.util';
 import { resolveExecutablePath } from '../utils/executable-path.util';
 
+export type AudioFormat = 'mp3' | 'm4a' | 'wav';
+
+export interface ConvertToAudioOptions {
+  bitrateKbps?: number;
+  format?: AudioFormat;
+}
+
+const AUDIO_FORMAT_CODECS: Record<AudioFormat, readonly string[]> = {
+  mp3: ['-acodec', 'libmp3lame'],
+  m4a: ['-acodec', 'aac', '-strict', 'experimental'],
+  wav: ['-acodec', 'pcm_s16le'],
+};
+
 @Injectable()
 export class FfmpegService {
   private readonly logger = new Logger(FfmpegService.name);
@@ -65,10 +78,19 @@ export class FfmpegService {
     }
   }
 
-  async convertToAudio(inputPath: string, outputPath: string): Promise<string> {
-    this.logger.debug(`Converting ${inputPath} to audio`);
+  async convertToAudio(
+    inputPath: string,
+    outputPath: string,
+    options: ConvertToAudioOptions = {},
+  ): Promise<string> {
+    const { bitrateKbps = 192, format = 'mp3' } = options;
+    this.logger.debug(
+      `Converting ${inputPath} to ${format} at ${bitrateKbps}kbps`,
+    );
 
     await this.ensureDirectory(path.dirname(outputPath));
+
+    const codecArgs = AUDIO_FORMAT_CODECS[format];
 
     try {
       const result = await spawnProcessSafe(this.ffmpegPath, {
@@ -77,10 +99,9 @@ export class FfmpegService {
           '-i',
           inputPath,
           '-vn',
-          '-acodec',
-          'libmp3lame',
-          '-q:a',
-          '2',
+          ...codecArgs,
+          '-b:a',
+          `${bitrateKbps}k`,
           outputPath,
         ],
         timeoutMs: FFMPEG_TIMEOUT_MS,

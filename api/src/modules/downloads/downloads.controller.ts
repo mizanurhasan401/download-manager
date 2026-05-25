@@ -21,7 +21,7 @@ import {
 } from '@nestjs/swagger';
 import { Response } from 'express';
 import type { Request } from 'express';
-import { Observable, defer, from, merge, of } from 'rxjs';
+import { Observable, defer, from, merge } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { FetchMetadataDto } from './dto/fetch-metadata.dto';
 import { StartDownloadDto } from './dto/start-download.dto';
@@ -123,6 +123,23 @@ export class DownloadsController {
     @Res({ passthrough: true }) response: Response,
   ) {
     return this.downloadsService.streamFile(id, response, request);
+  }
+
+  @Post(':id/retry')
+  @HttpCode(HttpStatus.ACCEPTED)
+  @ApiOperation({ summary: 'Retry a failed or cancelled download (resume support)' })
+  @ApiParam({ name: 'id', description: 'Download job UUID' })
+  @ApiResponse({ status: 202, description: 'Download re-queued' })
+  @ApiResponse({ status: 404, description: 'Download job not found' })
+  @ApiResponse({ status: 409, description: 'Download is not in a retryable state' })
+  async retryDownload(@Param('id', ParseUUIDPipe) id: string) {
+    const result = await this.downloadsService.retryDownload(id);
+
+    return {
+      success: true,
+      message: result.message,
+      data: result,
+    };
   }
 
   @Delete(':id')

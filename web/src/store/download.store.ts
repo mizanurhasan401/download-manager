@@ -8,22 +8,35 @@ interface DownloadSelection {
   formatId: string;
   quality: string;
   mediaType: MediaType;
+  audioBitrate?: number;
+}
+
+export interface ClipRange {
+  enabled: boolean;
+  startSeconds: number;
+  endSeconds: number;
 }
 
 interface DownloadUiState {
   activeJobId: string | null;
   selection: DownloadSelection | null;
+  clipRange: ClipRange | null;
   setActiveJobId: (id: string | null) => void;
   setSelection: (selection: DownloadSelection | null) => void;
   clearSelection: () => void;
+  setClipRange: (clip: ClipRange | null) => void;
+  clearClipRange: () => void;
 }
 
 export const useDownloadUiStore = create<DownloadUiState>((set) => ({
   activeJobId: null,
   selection: null,
+  clipRange: null,
   setActiveJobId: (id) => set({ activeJobId: id }),
   setSelection: (selection) => set({ selection }),
   clearSelection: () => set({ selection: null }),
+  setClipRange: (clip) => set({ clipRange: clip }),
+  clearClipRange: () => set({ clipRange: null }),
 }));
 
 interface HistoryState {

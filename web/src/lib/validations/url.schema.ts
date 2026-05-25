@@ -1,7 +1,5 @@
 import { z } from 'zod';
-import { ALLOWED_PROVIDERS } from '@/constants';
-
-const providerPatterns = ALLOWED_PROVIDERS.map((p) => p.pattern);
+import { isSupportedUrl } from '@/lib/providers';
 
 export const urlFormSchema = z.object({
   url: z
@@ -10,8 +8,8 @@ export const urlFormSchema = z.object({
     .min(1, 'URL is required')
     .url('Enter a valid URL')
     .refine(
-      (value) => providerPatterns.some((pattern) => pattern.test(value)),
-      'Unsupported provider. Use YouTube, Facebook, Instagram, TikTok, or Vimeo.',
+      isSupportedUrl,
+      'Unsupported provider. Use YouTube, Facebook, Instagram, TikTok, Vimeo, or Twitter/X.',
     ),
 });
 

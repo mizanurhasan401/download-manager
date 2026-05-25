@@ -3,6 +3,7 @@ import {
   DownloadJob,
   DownloadStatus,
   DownloadEventType,
+  JobKind,
   MediaType,
   Prisma,
 } from '@prisma/client';
@@ -13,13 +14,21 @@ export interface CreateDownloadJobInput {
   formatId: string;
   quality?: string;
   mediaType?: MediaType;
+  audioBitrate?: number;
+  clipStartSeconds?: number;
+  clipEndSeconds?: number;
+  jobKind?: JobKind;
 }
+
+export type DownloadJobWithVideo = Prisma.DownloadJobGetPayload<{
+  include: { video: true };
+}>;
 
 @Injectable()
 export class DownloadRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findById(id: string): Promise<DownloadJob | null> {
+  async findById(id: string): Promise<DownloadJobWithVideo | null> {
     return this.prisma.downloadJob.findUnique({
       where: { id },
       include: { video: true },
@@ -35,6 +44,10 @@ export class DownloadRepository {
           quality: input.quality,
           mediaType: input.mediaType ?? MediaType.VIDEO,
           status: DownloadStatus.PENDING,
+          audioBitrate: input.audioBitrate,
+          clipStartSeconds: input.clipStartSeconds,
+          clipEndSeconds: input.clipEndSeconds,
+          jobKind: input.jobKind ?? JobKind.SINGLE,
         },
       });
 
@@ -166,6 +179,38 @@ export class DownloadRepository {
           downloadJobId: id,
           event: DownloadEventType.FAILED,
           message: errorMessage,
+        },
+      });
+
+      return job;
+    });
+  }
+
+  async resetForRetry(id: string): Promise<DownloadJob> {
+    return this.prisma.$transaction(async (tx) => {
+      const existing = await tx.downloadJob.findUnique({ where: { id } });
+      if (!existing) {
+        throw new Error('Download job not found');
+      }
+
+      const job = await tx.downloadJob.update({
+        where: { id },
+        data: {
+          status: DownloadStatus.PENDING,
+          progress: 0,
+          errorMessage: null,
+          completedAt: null,
+          startedAt: null,
+          attemptCount: { increment: 1 },
+          lastAttemptAt: new Date(),
+        },
+      });
+
+      await tx.downloadHistory.create({
+        data: {
+          downloadJobId: id,
+          event: DownloadEventType.RETRYING,
+          message: `Retry attempt #${job.attemptCount}`,
         },
       });
 

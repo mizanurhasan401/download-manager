@@ -3,10 +3,10 @@ import {
   PipeTransform,
   BadRequestException,
 } from '@nestjs/common';
-import { ALLOWED_PROVIDERS } from '../constants';
-import { extractHostname, sanitizeUrl } from '../utils';
+import { sanitizeUrl } from '../utils';
 import { ProviderNotAllowedException } from '../exceptions/business.exception';
 import { VideoProviderEnum } from '../enums';
+import { detectProvider } from '../providers';
 
 @Injectable()
 export class VideoUrlValidationPipe implements PipeTransform<string, string> {
@@ -22,14 +22,10 @@ export class VideoUrlValidationPipe implements PipeTransform<string, string> {
       throw new BadRequestException('Invalid URL format');
     }
 
-    const hostname = extractHostname(sanitized);
-    const isAllowed = ALLOWED_PROVIDERS.some(
-      (provider) => hostname === provider || hostname.endsWith(`.${provider}`),
-    );
-
-    if (!isAllowed) {
+    const provider = detectProvider(sanitized);
+    if (!provider) {
       throw new ProviderNotAllowedException(
-        `Provider "${hostname}" is not in the allowed list`,
+        `URL "${sanitized}" does not match any supported provider`,
       );
     }
 
@@ -38,23 +34,5 @@ export class VideoUrlValidationPipe implements PipeTransform<string, string> {
 }
 
 export function resolveProviderFromUrl(url: string): VideoProviderEnum {
-  const hostname = extractHostname(url);
-
-  if (hostname.includes('youtube') || hostname.includes('youtu.be')) {
-    return VideoProviderEnum.YOUTUBE;
-  }
-  if (hostname.includes('facebook') || hostname.includes('fb.watch')) {
-    return VideoProviderEnum.FACEBOOK;
-  }
-  if (hostname.includes('instagram')) {
-    return VideoProviderEnum.INSTAGRAM;
-  }
-  if (hostname.includes('tiktok')) {
-    return VideoProviderEnum.TIKTOK;
-  }
-  if (hostname.includes('vimeo')) {
-    return VideoProviderEnum.VIMEO;
-  }
-
-  return VideoProviderEnum.OTHER;
+  return detectProvider(url)?.id ?? VideoProviderEnum.OTHER;
 }

@@ -46,8 +46,14 @@ export interface DownloadResult {
   audioFilePath?: string;
 }
 
+export interface DownloadClipRange {
+  startSec: number;
+  endSec: number;
+}
+
 export interface DownloadOptions {
   totalPhases?: number;
+  clip?: DownloadClipRange;
 }
 
 const DOWNLOAD_PERCENT_BUDGET = 95;
@@ -122,22 +128,35 @@ export class YtDlpService {
     const tracker = new ProgressTracker(totalPhases);
     let stderrLog = '';
 
+    const baseArgs = [
+      '--no-playlist',
+      '--no-warnings',
+      '--newline',
+      '--no-part',
+      '--progress',
+      '--merge-output-format',
+      'mp4',
+      '-f',
+      formatId,
+      '-o',
+      outputPath,
+    ];
+
+    if (options.clip) {
+      const { startSec, endSec } = options.clip;
+      this.logger.debug(`Clipping range: ${startSec}s - ${endSec}s`);
+      baseArgs.push(
+        '--download-sections',
+        `*${startSec}-${endSec}`,
+        '--force-keyframes-at-cuts',
+      );
+    }
+
+    baseArgs.push(url);
+
     try {
       const result = await spawnProcessSafe(this.ytdlpPath, {
-        args: [
-          '--no-playlist',
-          '--no-warnings',
-          '--newline',
-          '--no-part',
-          '--progress',
-          '--merge-output-format',
-          'mp4',
-          '-f',
-          formatId,
-          '-o',
-          outputPath,
-          url,
-        ],
+        args: baseArgs,
         timeoutMs: YTDLP_TIMEOUT_MS,
         onStderr: (chunk) => {
           stderrLog += chunk;
