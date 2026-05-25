@@ -1,0 +1,34 @@
+export enum VideoProviderEnum {
+  YOUTUBE = 'YOUTUBE',
+  FACEBOOK = 'FACEBOOK',
+  INSTAGRAM = 'INSTAGRAM',
+  TIKTOK = 'TIKTOK',
+  VIMEO = 'VIMEO',
+  OTHER = 'OTHER',
+}
+
+export enum DownloadStatusEnum {
+  PENDING = 'PENDING',
+  QUEUED = 'QUEUED',
+  PROCESSING = 'PROCESSING',
+  MERGING = 'MERGING',
+  COMPLETED = 'COMPLETED',
+  FAILED = 'FAILED',
+  CANCELLED = 'CANCELLED',
+}
+
+export enum MediaTypeEnum {
+  VIDEO = 'VIDEO',
+  AUDIO = 'AUDIO',
+}
+
+export enum DownloadEventTypeEnum {
+  CREATED = 'CREATED',
+  QUEUED = 'QUEUED',
+  STARTED = 'STARTED',
+  PROGRESS = 'PROGRESS',
+  MERGING = 'MERGING',
+  COMPLETED = 'COMPLETED',
+  FAILED = 'FAILED',
+  CANCELLED = 'CANCELLED',
+}

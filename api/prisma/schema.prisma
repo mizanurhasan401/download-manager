@@ -1,0 +1,129 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum VideoProvider {
+  YOUTUBE
+  FACEBOOK
+  INSTAGRAM
+  TIKTOK
+  VIMEO
+  OTHER
+}
+
+enum DownloadStatus {
+  PENDING
+  QUEUED
+  PROCESSING
+  MERGING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum DownloadEventType {
+  CREATED
+  QUEUED
+  STARTED
+  PROGRESS
+  MERGING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum MediaType {
+  VIDEO
+  AUDIO
+}
+
+model User {
+  id        String   @id @default(uuid()) @db.Uuid
+  email     String?  @unique
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  videos        Video[]
+  downloadJobs  DownloadJob[]
+
+  @@map("users")
+}
+
+model Video {
+  id           String        @id @default(uuid()) @db.Uuid
+  url          String
+  urlHash      String        @map("url_hash")
+  provider     VideoProvider
+  title        String?
+  description  String?       @db.Text
+  thumbnailUrl String?       @map("thumbnail_url")
+  duration     Int?
+  uploader     String?
+  metadata     Json?
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+
+  userId String? @map("user_id") @db.Uuid
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  downloadJobs DownloadJob[]
+
+  @@unique([urlHash])
+  @@index([provider])
+  @@index([createdAt])
+  @@map("videos")
+}
+
+model DownloadJob {
+  id           String         @id @default(uuid()) @db.Uuid
+  formatId     String         @map("format_id")
+  quality      String?
+  mediaType    MediaType      @default(VIDEO) @map("media_type")
+  status       DownloadStatus @default(PENDING)
+  progress     Float          @default(0)
+  filePath     String?        @map("file_path")
+  fileName     String?        @map("file_name")
+  fileSize     BigInt?        @map("file_size")
+  mimeType     String?        @map("mime_type")
+  errorMessage String?        @map("error_message") @db.Text
+  queueJobId   String?        @map("queue_job_id")
+  startedAt    DateTime?      @map("started_at")
+  completedAt  DateTime?      @map("completed_at")
+  createdAt    DateTime       @default(now()) @map("created_at")
+  updatedAt    DateTime       @updatedAt @map("updated_at")
+
+  videoId String @map("video_id") @db.Uuid
+  video   Video  @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  userId String? @map("user_id") @db.Uuid
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  history DownloadHistory[]
+
+  @@index([status])
+  @@index([videoId])
+  @@index([createdAt])
+  @@index([queueJobId])
+  @@map("download_jobs")
+}
+
+model DownloadHistory {
+  id        String            @id @default(uuid()) @db.Uuid
+  event     DownloadEventType
+  message   String?
+  metadata  Json?
+  createdAt DateTime          @default(now()) @map("created_at")
+
+  downloadJobId String      @map("download_job_id") @db.Uuid
+  downloadJob   DownloadJob @relation(fields: [downloadJobId], references: [id], onDelete: Cascade)
+
+  @@index([downloadJobId])
+  @@index([event])
+  @@index([createdAt])
+  @@map("download_history")
+}
