@@ -1,24 +1,18 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import { promises as fs } from 'fs';
+import { Injectable, Logger } from '@nestjs/common';
+import sharp from 'sharp';
 import { removeBackground } from '@imgly/background-removal-node';
 import { ImageProcessingException } from '../../common/exceptions/business.exception';
 
 @Injectable()
-export class BackgroundRemovalService implements OnModuleInit {
+export class BackgroundRemovalService {
   private readonly logger = new Logger(BackgroundRemovalService.name);
-  private warmupPromise: Promise<void> | null = null;
-
-  async onModuleInit(): Promise<void> {
-    this.warmupPromise = this.warmup();
-  }
 
   async removeBackground(inputPath: string): Promise<Buffer> {
-    await this.ensureWarmedUp();
-
     try {
-      const fileBuffer = await fs.readFile(inputPath);
-      const blob = new Blob([new Uint8Array(fileBuffer)]);
+      const pngBuffer = await this.normalizeToPng(inputPath);
+      const blob = new Blob([new Uint8Array(pngBuffer)], { type: 'image/png' });
 
+      this.logger.log('Running background-removal inference…');
       const resultBlob = await removeBackground(blob, {
         debug: false,
         output: { format: 'image/png', quality: 0.9 },
@@ -33,34 +27,19 @@ export class BackgroundRemovalService implements OnModuleInit {
     }
   }
 
-  private async ensureWarmedUp(): Promise<void> {
-    if (this.warmupPromise) {
-      await this.warmupPromise;
-    }
-  }
-
-  private async warmup(): Promise<void> {
-    try {
-      this.logger.log('Pre-warming background-removal model (first run may take ~5s)…');
-      const sharp = (await import('sharp')).default;
-      const seed = await sharp({
-        create: {
-          width: 8,
-          height: 8,
-          channels: 3,
-          background: { r: 255, g: 255, b: 255 },
-        },
-      })
-        .png()
-        .toBuffer();
-      const blob = new Blob([new Uint8Array(seed)]);
-      await removeBackground(blob, { debug: false });
-      this.logger.log('Background-removal model ready');
-    } catch (error) {
-      this.logger.warn(
-        `Background-removal warmup failed (will retry on first request): ${error instanceof Error ? error.message : 'unknown'}`,
-      );
-      this.warmupPromise = null;
-    }
+  /**
+   * The bg-removal library only accepts image/png, image/jpeg, image/webp and
+   * dispatches on the Blob's MIME type. Pre-decoding through Sharp into PNG
+   * gives us:
+   *   - AVIF support (library has none)
+   *   - EXIF auto-rotation
+   *   - A guaranteed Blob.type the library can dispatch on (no more
+   *     "Unsupported format" errors when an upstream forgets to set type)
+   */
+  private async normalizeToPng(inputPath: string): Promise<Buffer> {
+    return sharp(inputPath, { failOn: 'error' })
+      .rotate()
+      .png({ compressionLevel: 6 })
+      .toBuffer();
   }
 }
