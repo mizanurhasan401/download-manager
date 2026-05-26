@@ -92,26 +92,49 @@ export function ImageJobProgress({ jobId, onReset }: ImageJobProgressProps) {
         )}
 
         {job.status === 'COMPLETED' && output && (
-          <div
-            className={cn(
-              'flex flex-col gap-3 rounded-xl border border-border/60 bg-muted/30 p-4 sm:flex-row sm:items-center sm:justify-between',
-            )}
-          >
-            <div className="space-y-1 text-sm">
-              <p className="font-medium break-all">{output.fileName}</p>
-              <p className="text-xs text-muted-foreground">
-                {output.width ?? '?'}×{output.height ?? '?'} ·{' '}
-                {output.format ?? '—'} · {formatBytes(Number(output.sizeBytes))}
-              </p>
-            </div>
+          <div className="space-y-4">
             {downloadUrl && (
-              <Button asChild>
-                <a href={downloadUrl} download={output.fileName}>
-                  <Download className="h-4 w-4" />
-                  Download
-                </a>
-              </Button>
+              <div
+                className="flex items-center justify-center overflow-hidden rounded-xl border border-border/60"
+                style={{
+                  backgroundImage:
+                    'linear-gradient(45deg, #2a2a2a 25%, transparent 25%), linear-gradient(-45deg, #2a2a2a 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #2a2a2a 75%), linear-gradient(-45deg, transparent 75%, #2a2a2a 75%)',
+                  backgroundSize: '20px 20px',
+                  backgroundPosition: '0 0, 0 10px, 10px -10px, -10px 0px',
+                  backgroundColor: '#1a1a1a',
+                }}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={downloadUrl}
+                  alt={output.fileName}
+                  className="max-h-80 max-w-full object-contain"
+                />
+              </div>
             )}
+
+            <div
+              className={cn(
+                'flex flex-col gap-3 rounded-xl border border-border/60 bg-muted/30 p-4 sm:flex-row sm:items-center sm:justify-between',
+              )}
+            >
+              <div className="space-y-1 text-sm">
+                <p className="font-medium break-all">{output.fileName}</p>
+                <p className="text-xs text-muted-foreground">
+                  {output.width ?? '?'}×{output.height ?? '?'} ·{' '}
+                  {output.format ?? '—'} · {formatBytes(Number(output.sizeBytes))}
+                  {output.hasAlpha && ' · transparent'}
+                </p>
+              </div>
+              {downloadUrl && (
+                <Button asChild>
+                  <a href={downloadUrl} download={output.fileName}>
+                    <Download className="h-4 w-4" />
+                    Download
+                  </a>
+                </Button>
+              )}
+            </div>
           </div>
         )}
 

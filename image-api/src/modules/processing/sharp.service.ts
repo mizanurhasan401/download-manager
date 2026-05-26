@@ -126,7 +126,9 @@ export class SharpService implements OnModuleInit {
       case 'jpeg':
         return pipeline.jpeg({ quality: q, mozjpeg: true, progressive: true });
       case 'png':
-        return pipeline.png({ compressionLevel: 9, palette: false });
+        return pipeline
+          .ensureAlpha()
+          .png({ compressionLevel: 9, palette: false });
       case 'webp':
         return pipeline.webp({ quality: q, effort: 4 });
       case 'avif':
