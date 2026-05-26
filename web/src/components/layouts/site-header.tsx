@@ -2,12 +2,13 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Activity, Download, History } from 'lucide-react';
+import { Activity, Download, History, ImagePlus } from 'lucide-react';
 import { APP_NAME } from '@/constants';
 import { cn } from '@/lib/utils';
 
 const navItems = [
   { href: '/', label: 'Download', icon: Download },
+  { href: '/images', label: 'Image Tools', icon: ImagePlus },
   { href: '/history', label: 'History', icon: History },
   { href: '/health', label: 'Health', icon: Activity },
 ] as const;

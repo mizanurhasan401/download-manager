@@ -1,0 +1,113 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ImageOperation {
+  CONVERT
+  RESIZE
+  REMOVE_BACKGROUND
+}
+
+enum ImageJobStatus {
+  PENDING
+  QUEUED
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum ImageFormat {
+  JPEG
+  PNG
+  WEBP
+  AVIF
+}
+
+enum ImageFileKind {
+  ORIGINAL
+  OUTPUT
+}
+
+enum ResizeFit {
+  COVER
+  CONTAIN
+  FILL
+  INSIDE
+  OUTSIDE
+}
+
+enum ImageEventType {
+  CREATED
+  QUEUED
+  STARTED
+  PROGRESS
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+model ImageJob {
+  id           String         @id @default(uuid()) @db.Uuid
+  operation    ImageOperation
+  status       ImageJobStatus @default(PENDING)
+  progress     Float          @default(0)
+  parameters   Json
+  errorMessage String?        @map("error_message") @db.Text
+  queueJobId   String?        @map("queue_job_id")
+
+  startedAt   DateTime? @map("started_at")
+  completedAt DateTime? @map("completed_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  files   ImageFile[]
+  history ImageHistory[]
+
+  @@index([status])
+  @@index([operation])
+  @@index([createdAt])
+  @@map("image_jobs")
+}
+
+model ImageFile {
+  id          String        @id @default(uuid()) @db.Uuid
+  jobId       String        @map("job_id") @db.Uuid
+  kind        ImageFileKind
+  filePath    String        @map("file_path")
+  fileName    String        @map("file_name")
+  mimeType    String        @map("mime_type")
+  sizeBytes   BigInt        @map("size_bytes")
+  width       Int?
+  height      Int?
+  format      ImageFormat?
+  hasAlpha    Boolean       @default(false) @map("has_alpha")
+  checksum    String?
+  createdAt   DateTime      @default(now()) @map("created_at")
+
+  job ImageJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([jobId])
+  @@index([kind])
+  @@map("image_files")
+}
+
+model ImageHistory {
+  id        String         @id @default(uuid()) @db.Uuid
+  jobId     String         @map("job_id") @db.Uuid
+  event     ImageEventType
+  message   String?
+  metadata  Json?
+  createdAt DateTime       @default(now()) @map("created_at")
+
+  job ImageJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([jobId])
+  @@index([event])
+  @@map("image_history")
+}
