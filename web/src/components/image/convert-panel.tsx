@@ -27,7 +27,7 @@ export function ConvertPanel({ format, quality, onChange }: ConvertPanelProps) {
   return (
     <div className="space-y-4">
       <div className="space-y-1.5">
-        <label className="text-xs font-medium text-muted-foreground">
+        <label className="text-xs font-medium text-muted-foreground text-left">
           Target format
         </label>
         <Select
@@ -43,7 +43,7 @@ export function ConvertPanel({ format, quality, onChange }: ConvertPanelProps) {
             {FORMAT_OPTIONS.map((opt) => (
               <SelectItem key={opt.value} value={opt.value}>
                 <div className="flex flex-col">
-                  <span className="font-medium">{opt.label}</span>
+                  <span className="font-medium text-left">{opt.label}</span>
                   <span className="text-xs text-muted-foreground">{opt.hint}</span>
                 </div>
               </SelectItem>
@@ -56,7 +56,7 @@ export function ConvertPanel({ format, quality, onChange }: ConvertPanelProps) {
         <div className="space-y-1.5">
           <label
             htmlFor="convert-quality"
-            className="flex items-center justify-between text-xs font-medium text-muted-foreground"
+            className="flex items-center justify-between text-xs font-medium text-muted-foreground text-left"
           >
             <span>Quality</span>
             <span className="tabular-nums">{quality}</span>

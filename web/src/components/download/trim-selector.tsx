@@ -1,7 +1,7 @@
 'use client';
 
 import { Scissors } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -63,19 +63,14 @@ export function TrimSelector({ metadata }: TrimSelectorProps) {
 
   const enabled = clipRange?.enabled ?? false;
 
-  const [startInput, setStartInput] = useState('');
-  const [endInput, setEndInput] = useState('');
+  const [startDraft, setStartDraft] = useState<string | null>(null);
+  const [endDraft, setEndDraft] = useState<string | null>(null);
   const [inputError, setInputError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (clipRange) {
-      setStartInput(formatDuration(clipRange.startSeconds));
-      setEndInput(formatDuration(clipRange.endSeconds));
-    } else {
-      setStartInput(formatDuration(0));
-      setEndInput(formatDuration(duration));
-    }
-  }, [clipRange, duration]);
+  const startInput =
+    startDraft ?? formatDuration(clipRange?.startSeconds ?? 0);
+  const endInput =
+    endDraft ?? formatDuration(clipRange?.endSeconds ?? duration);
 
   const updateRange = useCallback(
     (next: ClipRange) => {
@@ -90,6 +85,9 @@ export function TrimSelector({ metadata }: TrimSelectorProps) {
 
     if (enabled) {
       setClipRange(null);
+      setStartDraft(null);
+      setEndDraft(null);
+      setInputError(null);
       return;
     }
 
@@ -109,26 +107,28 @@ export function TrimSelector({ metadata }: TrimSelectorProps) {
   };
 
   const commitStartInput = () => {
-    if (!enabled) return;
-    const parsed = parseTimeString(startInput);
+    if (!enabled || startDraft === null) return;
+    const parsed = parseTimeString(startDraft);
     if (parsed === null) {
       setInputError('Use format like 1:30 or 90');
       return;
     }
     const currentEnd = clipRange?.endSeconds ?? duration;
     const { start, end } = clampRange(parsed, currentEnd, duration);
+    setStartDraft(null);
     updateRange({ enabled: true, startSeconds: start, endSeconds: end });
   };
 
   const commitEndInput = () => {
-    if (!enabled) return;
-    const parsed = parseTimeString(endInput);
+    if (!enabled || endDraft === null) return;
+    const parsed = parseTimeString(endDraft);
     if (parsed === null) {
       setInputError('Use format like 2:45 or 165');
       return;
     }
     const currentStart = clipRange?.startSeconds ?? 0;
     const { start, end } = clampRange(currentStart, parsed, duration);
+    setEndDraft(null);
     updateRange({ enabled: true, startSeconds: start, endSeconds: end });
   };
 
@@ -195,14 +195,14 @@ export function TrimSelector({ metadata }: TrimSelectorProps) {
             <div className="space-y-1.5">
               <label
                 htmlFor="trim-start"
-                className="text-xs font-medium text-muted-foreground"
+                className="text-xs font-medium text-muted-foreground text-left"
               >
                 Start time
               </label>
               <Input
                 id="trim-start"
                 value={startInput}
-                onChange={(e) => setStartInput(e.target.value)}
+                onChange={(e) => setStartDraft(e.target.value)}
                 onBlur={commitStartInput}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
@@ -218,14 +218,14 @@ export function TrimSelector({ metadata }: TrimSelectorProps) {
             <div className="space-y-1.5">
               <label
                 htmlFor="trim-end"
-                className="text-xs font-medium text-muted-foreground"
+                className="text-xs font-medium text-muted-foreground text-left"
               >
                 End time
               </label>
               <Input
                 id="trim-end"
                 value={endInput}
-                onChange={(e) => setEndInput(e.target.value)}
+                onChange={(e) => setEndDraft(e.target.value)}
                 onBlur={commitEndInput}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {

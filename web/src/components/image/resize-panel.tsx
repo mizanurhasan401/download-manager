@@ -54,7 +54,7 @@ export function ResizePanel({
         <div className="space-y-1.5">
           <label
             htmlFor="resize-width"
-            className="text-xs font-medium text-muted-foreground"
+            className="text-xs font-medium text-muted-foreground text-left"
           >
             Width (px)
           </label>
@@ -72,7 +72,7 @@ export function ResizePanel({
         <div className="space-y-1.5">
           <label
             htmlFor="resize-height"
-            className="text-xs font-medium text-muted-foreground"
+            className="text-xs font-medium text-muted-foreground text-left"
           >
             Height (px)
           </label>
@@ -90,7 +90,7 @@ export function ResizePanel({
       </div>
 
       <div className="space-y-1.5">
-        <label className="text-xs font-medium text-muted-foreground">Fit mode</label>
+        <label className="text-xs font-medium text-muted-foreground text-left">Fit mode</label>
         <Select
           value={fit}
           onValueChange={(v) =>
@@ -114,7 +114,7 @@ export function ResizePanel({
       </div>
 
       <div className="space-y-1.5">
-        <label className="text-xs font-medium text-muted-foreground">
+        <label className="text-xs font-medium text-muted-foreground text-left">
           Output format
         </label>
         <Select
