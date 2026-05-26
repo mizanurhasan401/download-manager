@@ -1,0 +1,109 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ConversionCategory {
+  DOCUMENT
+  IMAGE
+}
+
+enum ConversionJobStatus {
+  PENDING
+  QUEUED
+  PROCESSING
+  CONVERTING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum ConversionFileFormat {
+  PDF
+  DOCX
+  PPTX
+  XLSX
+  TXT
+  PNG
+  JPG
+  WEBP
+}
+
+enum ConversionFileKind {
+  ORIGINAL
+  OUTPUT
+}
+
+enum ConversionEventType {
+  CREATED
+  QUEUED
+  STARTED
+  PROGRESS
+  CONVERTING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+model FileConversionJob {
+  id              String                @id @default(uuid()) @db.Uuid
+  category        ConversionCategory
+  sourceFormat    ConversionFileFormat  @map("source_format")
+  targetFormat    ConversionFileFormat  @map("target_format")
+  status          ConversionJobStatus   @default(PENDING)
+  progress        Float                 @default(0)
+  parameters      Json
+  errorMessage    String?               @map("error_message") @db.Text
+  queueJobId      String?               @map("queue_job_id")
+
+  startedAt   DateTime? @map("started_at")
+  completedAt DateTime? @map("completed_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  files   FileConversionFile[]
+  history FileConversionHistory[]
+
+  @@index([status])
+  @@index([category])
+  @@index([createdAt])
+  @@map("file_conversion_jobs")
+}
+
+model FileConversionFile {
+  id        String                @id @default(uuid()) @db.Uuid
+  jobId     String                @map("job_id") @db.Uuid
+  kind      ConversionFileKind
+  filePath  String                @map("file_path")
+  fileName  String                @map("file_name")
+  mimeType  String                @map("mime_type")
+  sizeBytes BigInt                @map("size_bytes")
+  format    ConversionFileFormat?
+  checksum  String?
+  createdAt DateTime              @default(now()) @map("created_at")
+
+  job FileConversionJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([jobId])
+  @@index([kind])
+  @@map("file_conversion_files")
+}
+
+model FileConversionHistory {
+  id        String              @id @default(uuid()) @db.Uuid
+  jobId     String              @map("job_id") @db.Uuid
+  event     ConversionEventType
+  message   String?
+  metadata  Json?
+  createdAt DateTime            @default(now()) @map("created_at")
+
+  job FileConversionJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([jobId])
+  @@index([event])
+  @@map("file_conversion_history")
+}
