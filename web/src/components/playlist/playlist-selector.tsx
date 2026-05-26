@@ -1,9 +1,8 @@
 'use client';
 
-import { ListChecks, Loader2, Music, User } from 'lucide-react';
+import { ListChecks, Loader2, Music } from 'lucide-react';
 import Image from 'next/image';
 import { useEffect } from 'react';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -40,13 +39,13 @@ interface QualityOption {
 }
 
 const QUALITY_OPTIONS: QualityOption[] = [
-  { value: 'BEST', label: 'Best available', description: 'Highest quality each video has' },
-  { value: 'Q_2160P', label: '2160p (4K) max', description: 'Cap at 4K if available' },
-  { value: 'Q_1440P', label: '1440p (2K) max', description: 'Cap at 1440p' },
+  { value: 'BEST', label: 'Best available', description: 'Highest quality' },
+  { value: 'Q_2160P', label: '2160p (4K) max', description: '4K if available' },
+  { value: 'Q_1440P', label: '1440p (2K) max', description: '1440p' },
   { value: 'Q_1080P', label: '1080p max', description: 'Full HD' },
   { value: 'Q_720P', label: '720p max', description: 'HD' },
-  { value: 'Q_480P', label: '480p max', description: 'Smaller files' },
-  { value: 'AUDIO_MP3', label: 'Audio only (MP3)', description: 'Extract audio as MP3' },
+  { value: 'Q_480P', label: '480p max', description: 'Smaller' },
+  { value: 'AUDIO_MP3', label: 'Audio only (MP3)', description: 'Extract audio' },
 ];
 
 export function PlaylistSelector({
@@ -117,84 +116,43 @@ export function PlaylistSelector({
     Boolean(playlistSelection) &&
     selectedIds.length > 0;
 
+  const allSelected = selectedIds.length === playlist.totalItems;
+
   return (
     <div className="space-y-6">
       <Card className="border-border/60 bg-card/80">
-        <CardHeader>
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-            <div className="space-y-1.5">
-              <div className="flex items-center gap-2">
-                <Badge variant="secondary">{playlist.provider}</Badge>
-                <Badge variant="outline">
-                  {playlist.totalItems} video
-                  {playlist.totalItems === 1 ? '' : 's'}
-                </Badge>
-              </div>
-              <CardTitle className="text-lg leading-tight">
-                {playlist.title ?? 'Untitled playlist'}
-              </CardTitle>
-              {playlist.uploader && (
-                <CardDescription className="flex items-center gap-1.5">
-                  <User className="h-3.5 w-3.5" />
-                  {playlist.uploader}
-                </CardDescription>
-              )}
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-5">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">
-                Quality preference
-              </label>
-              <Select
-                value={playlistSelection?.qualityPreference ?? 'Q_1080P'}
-                onValueChange={handleQualityChange}
+        <CardContent className="space-y-3 p-4 sm:p-5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <h3 className="text-base font-semibold leading-tight sm:text-lg min-w-0 truncate">
+              {playlist.title ?? 'Untitled playlist'}
+            </h3>
+
+            <div className="flex items-center gap-1 sm:shrink-0">
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                className="h-8 px-2 text-xs"
+                onClick={handleSelectAll}
+                disabled={allSelected}
               >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {QUALITY_OPTIONS.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      <div className="flex flex-col text-left">
-                        <span>{option.label}</span>
-                        <span className="text-xs text-muted-foreground">
-                          {option.description}
-                        </span>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                Select all
+              </Button>
+              <span className="text-muted-foreground/40">|</span>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                className="h-8 px-2 text-xs"
+                onClick={handleSelectNone}
+                disabled={selectedIds.length === 0}
+              >
+                Select none
+              </Button>
             </div>
-
-            {isAudio && (
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground">
-                  MP3 bitrate
-                </label>
-                <Select
-                  value={(playlistSelection?.audioBitrate ?? 192).toString()}
-                  onValueChange={handleBitrateChange}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {AUDIO_BITRATE_OPTIONS.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
           </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-muted/40 px-3 py-2 text-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
             <div className="flex items-center gap-2">
               <ListChecks className="h-4 w-4 text-muted-foreground" />
               <span className="font-medium tabular-nums">
@@ -209,23 +167,46 @@ export function PlaylistSelector({
                 </span>
               )}
             </div>
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                onClick={handleSelectAll}
+
+            <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
+              <Select
+                value={playlistSelection?.qualityPreference ?? 'Q_1080P'}
+                onValueChange={handleQualityChange}
               >
-                Select all
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                onClick={handleSelectNone}
-              >
-                Select none
-              </Button>
+                <SelectTrigger className="h-9 w-auto min-w-36 rounded-lg">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent align="end">
+                  {QUALITY_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      <div className="flex items-center text-left space-x-2">
+                        <span>{option.label}</span>
+                        <span className=" text-muted-foreground">
+                          {option.description}
+                        </span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {isAudio && (
+                <Select
+                  value={(playlistSelection?.audioBitrate ?? 192).toString()}
+                  onValueChange={handleBitrateChange}
+                >
+                  <SelectTrigger className="h-9 w-auto min-w-28 rounded-lg">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent align="end">
+                    {AUDIO_BITRATE_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
           </div>
         </CardContent>

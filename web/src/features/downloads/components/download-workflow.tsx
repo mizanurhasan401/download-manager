@@ -1,10 +1,10 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Download, RotateCcw } from 'lucide-react';
+import { RotateCcw } from 'lucide-react';
+import { InlineDownloadAction } from '@/components/download/inline-download-action';
 import { MetadataCard } from '@/components/download/metadata-card';
 import { ProgressCard } from '@/components/download/progress-card';
-import { QualitySelector } from '@/components/download/quality-selector';
 import { TrimSelector } from '@/components/download/trim-selector';
 import { UrlInput, type UrlInputHandle } from '@/components/download/url-input';
 import { PlaylistModeChooser } from '@/components/playlist/playlist-mode-chooser';
@@ -178,9 +178,6 @@ export function DownloadWorkflow() {
 
   const showSingleProgress = Boolean(activeJobId) && !activePlaylistId;
   const showPlaylistProgress = Boolean(activePlaylistId);
-  const canStartSingle = Boolean(
-    metadata && selection && !startDownload.isPending,
-  );
 
   return (
     <div className="space-y-8">
@@ -214,7 +211,18 @@ export function DownloadWorkflow() {
 
       {metadata && (
         <div className="space-y-6">
-          <MetadataCard metadata={metadata} />
+          <MetadataCard
+            metadata={metadata}
+            action={
+              mode === 'SINGLE' ? (
+                <InlineDownloadAction
+                  metadata={metadata}
+                  onStart={handleStart}
+                  isStarting={startDownload.isPending}
+                />
+              ) : undefined
+            }
+          />
 
           {playlistDetected && !activePlaylistId && (
             <PlaylistModeChooser
@@ -227,21 +235,10 @@ export function DownloadWorkflow() {
 
           {mode === 'SINGLE' && (
             <>
-              <QualitySelector metadata={metadata} />
               <TrimSelector metadata={metadata} />
 
               <div className="flex flex-wrap gap-3">
-                <Button
-                  size="lg"
-                  onClick={handleStart}
-                  disabled={!canStartSingle}
-                >
-                  <Download className="h-4 w-4" />
-                  {startDownload.isPending
-                    ? 'Starting...'
-                    : 'Start download'}
-                </Button>
-                <Button variant="outline" size="lg" onClick={handleReset}>
+                <Button variant="outline" size="sm" onClick={handleReset}>
                   <RotateCcw className="h-4 w-4" />
                   Start over
                 </Button>
