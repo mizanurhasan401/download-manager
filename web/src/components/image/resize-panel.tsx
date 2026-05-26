@@ -104,7 +104,7 @@ export function ResizePanel({
             {FIT_OPTIONS.map((opt) => (
               <SelectItem key={opt.value} value={opt.value}>
                 <div className="flex flex-col">
-                  <span className="font-medium">{opt.label}</span>
+                  <span className="font-medium text-left">{opt.label}</span>
                   <span className="text-xs text-muted-foreground">{opt.hint}</span>
                 </div>
               </SelectItem>

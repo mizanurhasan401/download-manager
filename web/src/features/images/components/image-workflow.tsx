@@ -3,13 +3,7 @@
 import { ImagePlus, Maximize2, Sparkles } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PageHeader } from '@/components/shared/page-header';
 import { BackgroundRemovePanel } from '@/components/image/background-remove-panel';
@@ -107,109 +101,112 @@ export function ImageWorkflow() {
   const submitting = createJob.isPending;
   const disabled = !file || submitting || Boolean(activeJobId);
 
+  const dropzoneDisabled = submitting || Boolean(activeJobId);
+
+  const handleSelectFile = (f: File | null) => {
+    setFile(f);
+    setSubmitError(null);
+    setActiveJobId(null);
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader
         title="Image Tools"
-        description="Convert, resize, and remove backgrounds. Powered by Sharp and on-device AI — your files never leave this machine."
+        description="Convert, resize, remove backgrounds — all on this machine."
       />
 
       <Card>
-        <CardHeader className="space-y-1.5">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <ImagePlus className="h-4 w-4" />
-            1 — Select an image
-          </CardTitle>
-          <CardDescription>PNG, JPG, WebP or AVIF — up to 25 MB.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ImageDropzone
-            file={file}
-            onSelect={(f) => {
-              setFile(f);
-              setSubmitError(null);
-              setActiveJobId(null);
-            }}
-            disabled={submitting || Boolean(activeJobId)}
-          />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="space-y-1.5">
-          <CardTitle className="text-base">2 — Choose what to do</CardTitle>
-          <CardDescription>
-            Each tab is its own operation. Run as many as you want, one job at a
-            time.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Tabs
-            value={tab}
-            onValueChange={(v) => {
-              setTab(v as Tab);
-              setSubmitError(null);
-            }}
-          >
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="CONVERT" className="gap-2">
-                <ImagePlus className="h-4 w-4" />
-                Convert
-              </TabsTrigger>
-              <TabsTrigger value="RESIZE" className="gap-2">
-                <Maximize2 className="h-4 w-4" />
-                Resize
-              </TabsTrigger>
-              <TabsTrigger value="REMOVE_BACKGROUND" className="gap-2">
-                <Sparkles className="h-4 w-4" />
-                Remove BG
-              </TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="CONVERT">
-              <ConvertPanel
-                format={convertState.format}
-                quality={convertState.quality}
-                onChange={setConvertState}
+        <CardContent className="p-4 sm:p-6">
+          {!file ? (
+            <ImageDropzone
+              file={null}
+              onSelect={handleSelectFile}
+              disabled={dropzoneDisabled}
+              variant="hero"
+            />
+          ) : (
+            <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
+              <ImageDropzone
+                file={file}
+                onSelect={handleSelectFile}
+                disabled={dropzoneDisabled}
+                variant="compact"
               />
-            </TabsContent>
-            <TabsContent value="RESIZE">
-              <ResizePanel
-                width={resizeState.width}
-                height={resizeState.height}
-                fit={resizeState.fit}
-                format={resizeState.format}
-                onChange={setResizeState}
-              />
-            </TabsContent>
-            <TabsContent value="REMOVE_BACKGROUND">
-              <BackgroundRemovePanel />
-            </TabsContent>
-          </Tabs>
 
-          {submitError && (
-            <p className="mt-4 text-sm text-destructive">{submitError}</p>
+              <div className="flex flex-col gap-4">
+                <Tabs
+                  value={tab}
+                  onValueChange={(v) => {
+                    setTab(v as Tab);
+                    setSubmitError(null);
+                  }}
+                >
+                  <TabsList className="grid w-full grid-cols-3">
+                    <TabsTrigger value="CONVERT" className="gap-2">
+                      <ImagePlus className="h-4 w-4" />
+                      <span className="hidden sm:inline">Convert</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="RESIZE" className="gap-2">
+                      <Maximize2 className="h-4 w-4" />
+                      <span className="hidden sm:inline">Resize</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="REMOVE_BACKGROUND" className="gap-2">
+                      <Sparkles className="h-4 w-4" />
+                      <span className="hidden sm:inline">Remove BG</span>
+                    </TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent value="CONVERT">
+                    <ConvertPanel
+                      format={convertState.format}
+                      quality={convertState.quality}
+                      onChange={setConvertState}
+                    />
+                  </TabsContent>
+                  <TabsContent value="RESIZE">
+                    <ResizePanel
+                      width={resizeState.width}
+                      height={resizeState.height}
+                      fit={resizeState.fit}
+                      format={resizeState.format}
+                      onChange={setResizeState}
+                    />
+                  </TabsContent>
+                  <TabsContent value="REMOVE_BACKGROUND">
+                    <BackgroundRemovePanel />
+                  </TabsContent>
+                </Tabs>
+
+                {submitError && (
+                  <p className="text-sm text-destructive">{submitError}</p>
+                )}
+
+                <div className="mt-auto flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
+                  <Button
+                    variant="outline"
+                    type="button"
+                    onClick={reset}
+                    disabled={submitting}
+                  >
+                    Reset
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={handleSubmit}
+                    disabled={disabled}
+                    className="sm:min-w-40"
+                  >
+                    {submitting ? 'Starting…' : 'Process image'}
+                  </Button>
+                </div>
+              </div>
+            </div>
           )}
-
-          <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-            <Button
-              variant="outline"
-              type="button"
-              onClick={reset}
-              disabled={submitting}
-            >
-              Reset
-            </Button>
-            <Button type="button" onClick={handleSubmit} disabled={disabled}>
-              {submitting ? 'Starting…' : 'Process image'}
-            </Button>
-          </div>
         </CardContent>
       </Card>
 
-      {activeJobId && (
-        <ImageJobProgress jobId={activeJobId} onReset={reset} />
-      )}
+      {activeJobId && <ImageJobProgress jobId={activeJobId} onReset={reset} />}
     </div>
   );
 }
