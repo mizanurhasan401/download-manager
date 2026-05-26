@@ -135,3 +135,29 @@ export function extractFirstVideoUrl(text: string): string | null {
 export function getProviderById(id: VideoProvider): ProviderDefinition | undefined {
   return PROVIDER_REGISTRY.find((provider) => provider.id === id);
 }
+
+export function hasPlaylistContext(rawUrl: string): boolean {
+  const provider = detectProvider(rawUrl);
+  if (!provider?.supportsPlaylist) return false;
+
+  try {
+    const parsed = new URL(rawUrl);
+
+    if (provider.id === 'YOUTUBE') {
+      if (parsed.searchParams.has('list')) return true;
+      if (parsed.pathname.startsWith('/playlist')) return true;
+      return false;
+    }
+
+    if (provider.id === 'VIMEO') {
+      return (
+        parsed.pathname.includes('/album/') ||
+        parsed.pathname.includes('/showcase/')
+      );
+    }
+
+    return false;
+  } catch {
+    return false;
+  }
+}

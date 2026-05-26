@@ -112,6 +112,74 @@ export interface ApiError {
   status?: number;
 }
 
+export type PlaylistStatusValue =
+  | 'PENDING'
+  | 'EXTRACTING'
+  | 'READY'
+  | 'PROCESSING'
+  | 'COMPLETED'
+  | 'PARTIALLY_COMPLETED'
+  | 'FAILED'
+  | 'CANCELLED';
+
+export type PlaylistQualityPreference =
+  | 'BEST'
+  | 'Q_2160P'
+  | 'Q_1440P'
+  | 'Q_1080P'
+  | 'Q_720P'
+  | 'Q_480P'
+  | 'AUDIO_MP3';
+
+export interface PlaylistItem {
+  id: string;
+  position: number;
+  videoUrl: string;
+  title: string | null;
+  duration: number | null;
+  thumbnailUrl: string | null;
+  selected: boolean;
+}
+
+export interface PlaylistMetadata {
+  id: string;
+  sourceUrl: string;
+  provider: VideoProvider;
+  title: string | null;
+  uploader: string | null;
+  totalItems: number;
+  selectedItems: number;
+  status: PlaylistStatusValue;
+  errorMessage: string | null;
+  createdAt: string;
+  updatedAt: string;
+  completedAt: string | null;
+  items: PlaylistItem[];
+}
+
+export interface FetchPlaylistMetadataPayload {
+  url: string;
+  maxItems?: number;
+}
+
+export interface StartPlaylistDownloadPayload {
+  playlistId: string;
+  itemIds: string[];
+  qualityPreference: PlaylistQualityPreference;
+  audioBitrate?: number;
+}
+
+export interface StartPlaylistDownloadResult {
+  playlistId: string;
+  totalSelected: number;
+  enqueued: Array<{
+    itemId: string;
+    downloadJobId: string;
+    videoUrl: string;
+  }>;
+  status: PlaylistStatusValue;
+}
+
 export type DownloadPhase =
   | 'PREPARING'
   | 'DOWNLOADING_VIDEO'

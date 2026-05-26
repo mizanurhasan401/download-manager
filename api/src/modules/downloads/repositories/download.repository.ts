@@ -18,6 +18,7 @@ export interface CreateDownloadJobInput {
   clipStartSeconds?: number;
   clipEndSeconds?: number;
   jobKind?: JobKind;
+  playlistId?: string;
 }
 
 export type DownloadJobWithVideo = Prisma.DownloadJobGetPayload<{
@@ -48,6 +49,7 @@ export class DownloadRepository {
           clipStartSeconds: input.clipStartSeconds,
           clipEndSeconds: input.clipEndSeconds,
           jobKind: input.jobKind ?? JobKind.SINGLE,
+          playlistId: input.playlistId,
         },
       });
 
@@ -238,6 +240,37 @@ export class DownloadRepository {
 
       return job;
     });
+  }
+
+  async findByPlaylistId(playlistId: string): Promise<DownloadJob[]> {
+    return this.prisma.downloadJob.findMany({
+      where: { playlistId },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
+  async countByPlaylistAndStatus(
+    playlistId: string,
+  ): Promise<Record<DownloadStatus, number>> {
+    const groups = await this.prisma.downloadJob.groupBy({
+      by: ['status'],
+      where: { playlistId },
+      _count: { _all: true },
+    });
+
+    const result: Record<DownloadStatus, number> = {
+      PENDING: 0,
+      QUEUED: 0,
+      PROCESSING: 0,
+      MERGING: 0,
+      COMPLETED: 0,
+      FAILED: 0,
+      CANCELLED: 0,
+    };
+    for (const group of groups) {
+      result[group.status] = group._count._all;
+    }
+    return result;
   }
 
   async addHistoryEvent(

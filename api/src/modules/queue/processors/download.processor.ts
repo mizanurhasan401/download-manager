@@ -2,7 +2,12 @@ import { Processor, WorkerHost, OnWorkerEvent } from '@nestjs/bullmq';
 import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Job } from 'bullmq';
-import { DownloadEventType, DownloadStatus, MediaType } from '@prisma/client';
+import {
+  DownloadEventType,
+  DownloadStatus,
+  MediaType,
+  PlaylistStatus,
+} from '@prisma/client';
 import * as path from 'path';
 import { QUEUE_NAMES } from '../../../common/constants';
 import { DownloadJobPayload } from '../../../common/interfaces';
@@ -14,6 +19,7 @@ import {
 } from '../../../common/services/ytdlp.service';
 import { sanitizeFileName } from '../../../common/utils';
 import { DownloadRepository } from '../../downloads/repositories/download.repository';
+import { PlaylistRepository } from '../../playlists/repositories/playlist.repository';
 
 const DB_PROGRESS_THROTTLE_MS = 1500;
 const DB_PROGRESS_THROTTLE_DELTA = 2;
@@ -30,6 +36,7 @@ export class DownloadProcessor extends WorkerHost {
     private readonly ffmpegService: FfmpegService,
     private readonly storageService: LocalStorageService,
     private readonly downloadRepository: DownloadRepository,
+    private readonly playlistRepository: PlaylistRepository,
     private readonly configService: ConfigService,
   ) {
     super();
@@ -230,6 +237,8 @@ export class DownloadProcessor extends WorkerHost {
         mimeType: storedFile.mimeType,
       });
 
+      await this.recomputePlaylistStatus(downloadJobId);
+
       await job.updateProgress({
         percent: 100,
         phase: 'FINISHED',
@@ -248,8 +257,46 @@ export class DownloadProcessor extends WorkerHost {
         error instanceof Error ? error.message : 'Unknown download error';
 
       await this.downloadRepository.markFailed(downloadJobId, message);
+      await this.recomputePlaylistStatus(downloadJobId);
       this.logger.error(`Download job ${downloadJobId} failed: ${message}`);
       throw error;
+    }
+  }
+
+  private async recomputePlaylistStatus(downloadJobId: string): Promise<void> {
+    try {
+      const job = await this.downloadRepository.findById(downloadJobId);
+      if (!job?.playlistId) return;
+
+      const counts = await this.downloadRepository.countByPlaylistAndStatus(
+        job.playlistId,
+      );
+      const total = Object.values(counts).reduce((acc, n) => acc + n, 0);
+      if (total === 0) return;
+
+      const inFlight =
+        counts.PENDING + counts.QUEUED + counts.PROCESSING + counts.MERGING;
+      const completed = counts.COMPLETED;
+      const failed = counts.FAILED + counts.CANCELLED;
+
+      let next: PlaylistStatus;
+      if (inFlight > 0) {
+        next = PlaylistStatus.PROCESSING;
+      } else if (completed === total) {
+        next = PlaylistStatus.COMPLETED;
+      } else if (failed === total) {
+        next = PlaylistStatus.FAILED;
+      } else {
+        next = PlaylistStatus.PARTIALLY_COMPLETED;
+      }
+
+      await this.playlistRepository.updateStatus(job.playlistId, next);
+    } catch (err) {
+      this.logger.warn(
+        `Failed to recompute playlist status for job ${downloadJobId}: ${
+          err instanceof Error ? err.message : 'unknown'
+        }`,
+      );
     }
   }
 

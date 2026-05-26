@@ -16,6 +16,7 @@ import { validateConfig } from './config/validation.util';
 import { EnvironmentVariables } from './config/env.validation';
 import { PrismaModule } from './prisma/prisma.module';
 import { DownloadsModule } from './modules/downloads/downloads.module';
+import { PlaylistsModule } from './modules/playlists/playlists.module';
 import { StorageModule } from './modules/storage/storage.module';
 import { QueueModule } from './modules/queue/queue.module';
 import { HealthModule } from './modules/health/health.module';
@@ -62,6 +63,7 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
     StorageModule,
     QueueModule,
     DownloadsModule,
+    PlaylistsModule,
     HealthModule,
     SystemModule,
   ],

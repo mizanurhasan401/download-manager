@@ -41,6 +41,29 @@ export interface YtDlpMetadata {
   formats?: YtDlpFormat[];
 }
 
+export interface YtDlpPlaylistEntry {
+  id?: string;
+  url?: string;
+  webpage_url?: string;
+  title?: string;
+  duration?: number;
+  thumbnail?: string;
+  thumbnails?: Array<{ url: string; width?: number; height?: number }>;
+  uploader?: string;
+  ie_key?: string;
+}
+
+export interface YtDlpPlaylistMetadata {
+  _type?: 'playlist' | 'multi_video' | string;
+  id: string;
+  title?: string;
+  uploader?: string;
+  description?: string;
+  webpage_url: string;
+  playlist_count?: number;
+  entries?: YtDlpPlaylistEntry[];
+}
+
 export interface DownloadJobPayload {
   downloadJobId: string;
   videoUrl: string;

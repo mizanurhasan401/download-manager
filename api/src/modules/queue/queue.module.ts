@@ -4,11 +4,13 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { QUEUE_NAMES } from '../../common/constants';
 import { DownloadProcessor } from './processors/download.processor';
 import { DownloadPersistenceModule } from '../downloads/download-persistence.module';
+import { PlaylistPersistenceModule } from '../playlists/playlist-persistence.module';
 import { VideosModule } from '../videos/videos.module';
 
 @Module({
   imports: [
     DownloadPersistenceModule,
+    PlaylistPersistenceModule,
     VideosModule,
     BullModule.forRootAsync({
       imports: [ConfigModule],

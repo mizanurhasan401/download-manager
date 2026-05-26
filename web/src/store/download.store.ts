@@ -2,7 +2,13 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { DownloadHistoryItem, MediaType } from '@/types/api';
+import type {
+  DownloadHistoryItem,
+  MediaType,
+  PlaylistQualityPreference,
+} from '@/types/api';
+
+export type DownloadMode = 'SINGLE' | 'PLAYLIST';
 
 interface DownloadSelection {
   formatId: string;
@@ -17,26 +23,54 @@ export interface ClipRange {
   endSeconds: number;
 }
 
+export interface PlaylistSelectionState {
+  playlistId: string;
+  selectedItemIds: string[];
+  qualityPreference: PlaylistQualityPreference;
+  audioBitrate: number;
+}
+
 interface DownloadUiState {
   activeJobId: string | null;
+  activePlaylistId: string | null;
+  mode: DownloadMode;
   selection: DownloadSelection | null;
   clipRange: ClipRange | null;
+  playlistSelection: PlaylistSelectionState | null;
   setActiveJobId: (id: string | null) => void;
+  setActivePlaylistId: (id: string | null) => void;
+  setMode: (mode: DownloadMode) => void;
   setSelection: (selection: DownloadSelection | null) => void;
   clearSelection: () => void;
   setClipRange: (clip: ClipRange | null) => void;
   clearClipRange: () => void;
+  setPlaylistSelection: (selection: PlaylistSelectionState | null) => void;
+  patchPlaylistSelection: (patch: Partial<PlaylistSelectionState>) => void;
+  clearPlaylistSelection: () => void;
 }
 
 export const useDownloadUiStore = create<DownloadUiState>((set) => ({
   activeJobId: null,
+  activePlaylistId: null,
+  mode: 'SINGLE',
   selection: null,
   clipRange: null,
+  playlistSelection: null,
   setActiveJobId: (id) => set({ activeJobId: id }),
+  setActivePlaylistId: (id) => set({ activePlaylistId: id }),
+  setMode: (mode) => set({ mode }),
   setSelection: (selection) => set({ selection }),
   clearSelection: () => set({ selection: null }),
   setClipRange: (clip) => set({ clipRange: clip }),
   clearClipRange: () => set({ clipRange: null }),
+  setPlaylistSelection: (selection) => set({ playlistSelection: selection }),
+  patchPlaylistSelection: (patch) =>
+    set((state) => ({
+      playlistSelection: state.playlistSelection
+        ? { ...state.playlistSelection, ...patch }
+        : state.playlistSelection,
+    })),
+  clearPlaylistSelection: () => set({ playlistSelection: null }),
 }));
 
 interface HistoryState {

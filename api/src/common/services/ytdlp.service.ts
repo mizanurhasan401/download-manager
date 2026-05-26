@@ -5,7 +5,11 @@ import {
   DownloaderNotAvailableException,
   YtDlpExecutionException,
 } from '../../common/exceptions/business.exception';
-import { YtDlpFormat, YtDlpMetadata } from '../../common/interfaces';
+import {
+  YtDlpFormat,
+  YtDlpMetadata,
+  YtDlpPlaylistMetadata,
+} from '../../common/interfaces';
 import { resolveExecutablePath } from '../../common/utils/executable-path.util';
 import { ProcessNotFoundError, spawnProcessSafe } from '../../common/utils/process.util';
 import { promises as fs } from 'fs';
@@ -94,6 +98,64 @@ export class YtDlpService {
           'Invalid metadata response from yt-dlp',
         );
       }
+    } catch (error) {
+      if (error instanceof ProcessNotFoundError) {
+        throw new DownloaderNotAvailableException('yt-dlp', this.ytdlpPath);
+      }
+
+      throw error;
+    }
+  }
+
+  async extractPlaylistMetadata(
+    url: string,
+    options: { maxItems?: number } = {},
+  ): Promise<YtDlpPlaylistMetadata> {
+    this.logger.debug(`Extracting playlist metadata for: ${url}`);
+
+    const args = [
+      '--yes-playlist',
+      '--flat-playlist',
+      '--no-warnings',
+      '-J',
+    ];
+
+    if (options.maxItems && options.maxItems > 0) {
+      args.push('--playlist-end', String(options.maxItems));
+    }
+
+    args.push(url);
+
+    try {
+      const result = await spawnProcessSafe(this.ytdlpPath, {
+        args,
+        timeoutMs: YTDLP_TIMEOUT_MS,
+      });
+
+      if (result.exitCode !== 0) {
+        this.logger.error(`yt-dlp playlist metadata failed: ${result.stderr}`);
+        throw new YtDlpExecutionException(
+          result.stderr || 'Failed to extract playlist metadata',
+        );
+      }
+
+      let parsed: YtDlpPlaylistMetadata;
+      try {
+        parsed = JSON.parse(result.stdout) as YtDlpPlaylistMetadata;
+      } catch {
+        throw new YtDlpExecutionException(
+          'Invalid playlist metadata response from yt-dlp',
+        );
+      }
+
+      if (
+        !parsed ||
+        (parsed._type && parsed._type !== 'playlist' && parsed._type !== 'multi_video')
+      ) {
+        throw new YtDlpExecutionException('URL does not point to a playlist');
+      }
+
+      return parsed;
     } catch (error) {
       if (error instanceof ProcessNotFoundError) {
         throw new DownloaderNotAvailableException('yt-dlp', this.ytdlpPath);
