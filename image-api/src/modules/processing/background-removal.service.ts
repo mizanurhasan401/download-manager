@@ -19,12 +19,33 @@ export class BackgroundRemovalService {
       });
 
       const arrayBuffer = await resultBlob.arrayBuffer();
-      return Buffer.from(arrayBuffer);
+      const rawCutout = Buffer.from(arrayBuffer);
+
+      return await this.normalizeAlpha(rawCutout);
     } catch (error) {
       throw new ImageProcessingException(
         `Background removal failed: ${error instanceof Error ? error.message : 'unknown'}`,
       );
     }
+  }
+
+  /**
+   * The bg-removal model emits a soft-mask alpha channel whose maximum value is
+   * 254 (not 255). On a dark UI background that 0.4% gap is invisible, but
+   * any viewer that composites PNG transparency on white paints a faint white
+   * wash over every "solid" pixel — which is exactly what the user sees when
+   * they open the downloaded file in a native image viewer.
+   *
+   * Stretch the alpha channel so 254 → 255 while leaving RGB untouched. Edges
+   * keep their anti-aliasing, background pixels stay fully transparent, and
+   * subject pixels become genuinely opaque.
+   */
+  private async normalizeAlpha(buffer: Buffer): Promise<Buffer> {
+    return sharp(buffer, { failOn: 'error' })
+      .ensureAlpha()
+      .linear([1, 1, 1, 255 / 254], [0, 0, 0, 0])
+      .png({ compressionLevel: 9, palette: false })
+      .toBuffer();
   }
 
   /**
