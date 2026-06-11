@@ -139,19 +139,19 @@ build_services() {
 configure_nginx() {
   log "Configuring Nginx for ${SITE_DOMAIN}..."
 
+  local nginx_src="${DEPLOY_DIR}/nginx/download-manager.conf"
+  if [[ ! -f "/etc/letsencrypt/live/${SITE_DOMAIN}/fullchain.pem" ]]; then
+    nginx_src="${DEPLOY_DIR}/nginx/download-manager.http.conf"
+    log "No SSL cert — using HTTP-only config. Run certbot after DNS is live."
+  fi
+
   sed -e "s|downloadvideos.work.gd|${SITE_DOMAIN}|g" \
       -e "s|84.247.191.28|${SERVER_IP}|g" \
-      "${DEPLOY_DIR}/nginx/download-manager.conf" \
+      "${nginx_src}" \
       > /etc/nginx/sites-available/download-manager
 
   ln -sf /etc/nginx/sites-available/download-manager /etc/nginx/sites-enabled/download-manager
   rm -f /etc/nginx/sites-enabled/default
-
-  if [[ -f "/etc/letsencrypt/live/${SITE_DOMAIN}/fullchain.pem" ]]; then
-    log "SSL certificate found — re-applying Certbot nginx config..."
-    certbot --nginx -d "${SITE_DOMAIN}" -d "www.${SITE_DOMAIN}" --non-interactive --redirect 2>/dev/null \
-      || log "Certbot re-apply skipped (run manually if needed)"
-  fi
 
   nginx -t
   systemctl enable nginx
