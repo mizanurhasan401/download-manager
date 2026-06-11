@@ -3,10 +3,26 @@ set -euo pipefail
 
 APP_ROOT="${APP_ROOT:-/home/deploy/download-manager}"
 DEPLOY_DIR="${APP_ROOT}/deploy"
-PUBLIC_URL="${PUBLIC_URL:-http://84.247.191.28}"
+SITE_DOMAIN="${SITE_DOMAIN:-downloadvideos.work.gd}"
+SERVER_IP="${SERVER_IP:-84.247.191.28}"
+PUBLIC_URL="${PUBLIC_URL:-https://${SITE_DOMAIN}}"
 
 log() { echo "[deploy] $*"; }
 die() { echo "[deploy] ERROR: $*" >&2; exit 1; }
+
+normalize_public_url() {
+  local url="${1}"
+  url="${url%/}"
+  if [[ "${url}" != http*://* ]]; then
+    url="https://${url}"
+  fi
+  echo "${url}"
+}
+
+PUBLIC_URL="$(normalize_public_url "${PUBLIC_URL}")"
+SITE_DOMAIN="${SITE_DOMAIN:-${PUBLIC_URL#https://}}"
+SITE_DOMAIN="${SITE_DOMAIN#http://}"
+SITE_DOMAIN="${SITE_DOMAIN%%/*}"
 
 require_cmd() {
   command -v "$1" >/dev/null 2>&1 || die "Missing required command: $1"
@@ -80,8 +96,12 @@ install_env_files() {
   cp "${DEPLOY_DIR}/env/file-converter.env" "${APP_ROOT}/file-converter/.env.development"
   cp "${DEPLOY_DIR}/env/image-api.env" "${APP_ROOT}/image-api/.env.development"
 
-  sed "s|http://84.247.191.28|${PUBLIC_URL}|g" "${DEPLOY_DIR}/env/web.env" \
-    > "${APP_ROOT}/web/.env.production"
+  sed -e "s|https://downloadvideos.work.gd|${PUBLIC_URL}|g" \
+      -e "s|http://downloadvideos.work.gd|${PUBLIC_URL}|g" \
+      "${DEPLOY_DIR}/env/web.env" \
+      > "${APP_ROOT}/web/.env.production"
+
+  log "Web env written for ${PUBLIC_URL}"
 }
 
 build_services() {
@@ -117,13 +137,22 @@ build_services() {
 }
 
 configure_nginx() {
-  log "Configuring Nginx..."
-  sed "s|84.247.191.28|${PUBLIC_URL#http://}|g; s|84.247.191.28|${PUBLIC_URL#https://}|g" \
-    "${DEPLOY_DIR}/nginx/download-manager.conf" \
-    > /etc/nginx/sites-available/download-manager
+  log "Configuring Nginx for ${SITE_DOMAIN}..."
+
+  sed -e "s|downloadvideos.work.gd|${SITE_DOMAIN}|g" \
+      -e "s|84.247.191.28|${SERVER_IP}|g" \
+      "${DEPLOY_DIR}/nginx/download-manager.conf" \
+      > /etc/nginx/sites-available/download-manager
 
   ln -sf /etc/nginx/sites-available/download-manager /etc/nginx/sites-enabled/download-manager
   rm -f /etc/nginx/sites-enabled/default
+
+  if [[ -f "/etc/letsencrypt/live/${SITE_DOMAIN}/fullchain.pem" ]]; then
+    log "SSL certificate found — re-applying Certbot nginx config..."
+    certbot --nginx -d "${SITE_DOMAIN}" -d "www.${SITE_DOMAIN}" --non-interactive --redirect 2>/dev/null \
+      || log "Certbot re-apply skipped (run manually if needed)"
+  fi
+
   nginx -t
   systemctl enable nginx
   systemctl reload nginx
@@ -147,7 +176,7 @@ verify_deployment() {
   curl -sf "http://127.0.0.1:3001" >/dev/null \
     && log "Web: OK" \
     || log "Web: pending (check pm2 logs dm-web)"
-  curl -sf "http://127.0.0.1/api/v1/health" >/dev/null \
+  curl -sf -H "Host: ${SITE_DOMAIN}" "http://127.0.0.1/api/v1/health" >/dev/null \
     && log "Nginx proxy: OK" \
     || log "Nginx proxy: pending"
 }
@@ -171,7 +200,7 @@ main() {
 
   log "Deployment complete."
   log "Site URL: ${PUBLIC_URL}"
-  log "API docs: ${PUBLIC_URL}/api/docs (via port 3000 direct) — use pm2 logs for troubleshooting"
+  log "Domain: ${SITE_DOMAIN}"
   log "PM2 status: pm2 status"
 }
 

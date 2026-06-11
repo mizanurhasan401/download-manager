@@ -1,0 +1,4 @@
+# Deployment defaults — override when running setup-vps.sh
+SITE_DOMAIN=downloadvideos.work.gd
+SERVER_IP=84.247.191.28
+PUBLIC_URL=https://downloadvideos.work.gd
