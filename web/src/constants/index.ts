@@ -16,7 +16,7 @@ export const QUERY_STALE_TIME = {
   health: 30 * 1000,
 } as const;
 
-export const APP_NAME = 'VidGrab';
+export { APP_NAME } from '@/config/site';
 
 export const CLIPBOARD_DETECTOR = {
   pollIntervalMs: 1500,

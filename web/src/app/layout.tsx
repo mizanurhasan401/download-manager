@@ -4,7 +4,7 @@ import { Toaster } from 'sonner';
 import { AdSenseProvider } from '@/components/ads';
 import { AppProviders } from '@/components/providers/app-providers';
 import { adsConfig } from '@/config/ads';
-import { APP_NAME } from '@/constants';
+import { siteConfig } from '@/config/site';
 import './globals.css';
 
 const geistSans = Geist({
@@ -18,13 +18,54 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(siteConfig.url),
   title: {
-    default: APP_NAME,
-    template: `%s · ${APP_NAME}`,
+    default: siteConfig.title,
+    template: `%s | ${siteConfig.name}`,
   },
-  description:
-    'Download videos from YouTube, TikTok, Instagram, Facebook, and Vimeo.',
-  // AdSense site verification meta tag. Skipped when the env var is missing.
+  description: siteConfig.description,
+  keywords: [...siteConfig.keywords],
+  applicationName: siteConfig.name,
+  authors: [{ name: siteConfig.name }],
+  creator: siteConfig.name,
+  publisher: siteConfig.name,
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
+  openGraph: {
+    type: 'website',
+    locale: 'en_US',
+    url: siteConfig.url,
+    siteName: siteConfig.name,
+    title: siteConfig.title,
+    description: siteConfig.description,
+    images: [
+      {
+        url: '/logo.svg',
+        width: 512,
+        height: 512,
+        alt: `${siteConfig.name} logo`,
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: siteConfig.title,
+    description: siteConfig.description,
+    images: ['/logo.svg'],
+  },
+  icons: {
+    icon: [{ url: '/logo.svg', type: 'image/svg+xml' }],
+    apple: [{ url: '/logo.svg', type: 'image/svg+xml' }],
+  },
   ...(adsConfig.enabled
     ? { other: { 'google-adsense-account': adsConfig.client } }
     : {}),

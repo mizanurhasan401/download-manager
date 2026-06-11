@@ -26,12 +26,14 @@ export const UrlInput = forwardRef<UrlInputHandle, UrlInputProps>(
       register,
       handleSubmit,
       setValue,
-      getValues,
+      watch,
       formState: { errors },
     } = useForm<UrlFormValues>({
       resolver: zodResolver(urlFormSchema),
       defaultValues: { url: '' },
     });
+
+    const url = watch('url');
 
     useImperativeHandle(
       ref,
@@ -90,7 +92,7 @@ export const UrlInput = forwardRef<UrlInputHandle, UrlInputProps>(
             </Button>
             <Button
               type="submit"
-              disabled={isLoading || !getValues('url')}
+              disabled={isLoading || !url?.trim()}
               className="shrink-0"
             >
               {isLoading ? (

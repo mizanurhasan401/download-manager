@@ -1,9 +1,17 @@
+import type { Metadata } from 'next';
 import { AdBanner, AdInArticle } from '@/components/ads';
 import { SiteShell } from '@/components/layouts/site-shell';
 import { adsConfig } from '@/config/ads';
+import { siteConfig } from '@/config/site';
 import { FileConverterWorkflow } from '@/features/file-converter/components/file-converter-workflow';
 
-export const metadata = { title: 'File Converter' };
+export const metadata: Metadata = {
+  title: siteConfig.pages.fileConverter.title,
+  description: siteConfig.pages.fileConverter.description,
+  alternates: {
+    canonical: '/file-converter',
+  },
+};
 
 export default function FileConverterPage() {
   return (

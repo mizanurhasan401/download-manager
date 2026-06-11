@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Activity, Download, FileType2, History, ImagePlus } from 'lucide-react';
-import { APP_NAME } from '@/constants';
+import { SiteLogo } from '@/components/brand/site-logo';
 import { cn } from '@/lib/utils';
 
 const navItems = [
@@ -20,11 +20,8 @@ export function SiteHeader() {
   return (
     <header className="sticky top-0 z-50 border-b border-border/60 bg-background/80 backdrop-blur-xl">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
-        <Link href="/" className="flex items-center gap-2.5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/15">
-            <Download className="h-4.5 w-4.5 text-primary" />
-          </div>
-          <span className="text-lg font-semibold tracking-tight">{APP_NAME}</span>
+        <Link href="/" className="flex items-center gap-2.5" aria-label="VidGrab home">
+          <SiteLogo />
         </Link>
 
         <nav className="flex items-center gap-1 rounded-xl bg-muted/50 p-1">
