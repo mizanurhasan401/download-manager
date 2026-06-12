@@ -99,4 +99,22 @@ export class EnvironmentVariables {
   @IsOptional()
   @IsString()
   LOG_LEVEL?: string;
+
+  @IsOptional()
+  @IsString()
+  YTDLP_COOKIES_FILE?: string;
+
+  @IsOptional()
+  @IsString()
+  YTDLP_PROXY?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  YTDLP_RETRIES?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1000)
+  YTDLP_TIMEOUT_MS?: number;
 }

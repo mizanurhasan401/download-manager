@@ -1,6 +1,9 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleInit,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { YTDLP_TIMEOUT_MS } from '../../common/constants';
 import {
   DownloaderNotAvailableException,
   YtDlpExecutionException,
@@ -11,6 +14,7 @@ import {
   YtDlpPlaylistMetadata,
 } from '../../common/interfaces';
 import { resolveExecutablePath } from '../../common/utils/executable-path.util';
+import { normalizeYtDlpError } from '../../common/utils/ytdlp-error.util';
 import { ProcessNotFoundError, spawnProcessSafe } from '../../common/utils/process.util';
 import { promises as fs } from 'fs';
 import * as path from 'path';
@@ -63,9 +67,10 @@ export interface DownloadOptions {
 const DOWNLOAD_PERCENT_BUDGET = 95;
 
 @Injectable()
-export class YtDlpService {
+export class YtDlpService implements OnModuleInit {
   private readonly logger = new Logger(YtDlpService.name);
   private readonly ytdlpPath: string;
+  private cookiesFilePath: string | null = null;
 
   constructor(private readonly configService: ConfigService) {
     const configuredPath = this.configService.get<string>(
@@ -75,19 +80,43 @@ export class YtDlpService {
     this.ytdlpPath = resolveExecutablePath(configuredPath);
   }
 
+  async onModuleInit(): Promise<void> {
+    const configuredCookies = this.configService.get<string>(
+      'downloader.cookiesFile',
+    );
+
+    if (!configuredCookies) {
+      return;
+    }
+
+    try {
+      await fs.access(configuredCookies);
+      this.cookiesFilePath = configuredCookies;
+      this.logger.log(`Using yt-dlp cookies file: ${configuredCookies}`);
+    } catch {
+      this.logger.warn(
+        `YTDLP_COOKIES_FILE is set but file not found: ${configuredCookies}`,
+      );
+    }
+  }
+
   async extractMetadata(url: string): Promise<YtDlpMetadata> {
     this.logger.debug(`Extracting metadata for: ${url}`);
 
     try {
       const result = await spawnProcessSafe(this.ytdlpPath, {
-        args: ['--no-playlist', '--no-warnings', '-J', url],
-        timeoutMs: YTDLP_TIMEOUT_MS,
+        args: [...this.buildCommonArgs(), '--no-playlist', '--no-warnings', '-J', url],
+        timeoutMs: this.getTimeoutMs(),
       });
 
       if (result.exitCode !== 0) {
         this.logger.error(`yt-dlp metadata failed: ${result.stderr}`);
-        throw new YtDlpExecutionException(
+        const normalized = normalizeYtDlpError(
           result.stderr || 'Failed to extract video metadata',
+        );
+        throw new YtDlpExecutionException(
+          normalized.message,
+          normalized.code,
         );
       }
 
@@ -114,6 +143,7 @@ export class YtDlpService {
     this.logger.debug(`Extracting playlist metadata for: ${url}`);
 
     const args = [
+      ...this.buildCommonArgs(),
       '--yes-playlist',
       '--flat-playlist',
       '--no-warnings',
@@ -129,13 +159,17 @@ export class YtDlpService {
     try {
       const result = await spawnProcessSafe(this.ytdlpPath, {
         args,
-        timeoutMs: YTDLP_TIMEOUT_MS,
+        timeoutMs: this.getTimeoutMs(),
       });
 
       if (result.exitCode !== 0) {
         this.logger.error(`yt-dlp playlist metadata failed: ${result.stderr}`);
-        throw new YtDlpExecutionException(
+        const normalized = normalizeYtDlpError(
           result.stderr || 'Failed to extract playlist metadata',
+        );
+        throw new YtDlpExecutionException(
+          normalized.message,
+          normalized.code,
         );
       }
 
@@ -191,6 +225,7 @@ export class YtDlpService {
     let stderrLog = '';
 
     const baseArgs = [
+      ...this.buildCommonArgs(),
       '--no-playlist',
       '--no-warnings',
       '--newline',
@@ -219,7 +254,7 @@ export class YtDlpService {
     try {
       const result = await spawnProcessSafe(this.ytdlpPath, {
         args: baseArgs,
-        timeoutMs: YTDLP_TIMEOUT_MS,
+        timeoutMs: this.getTimeoutMs(),
         onStderr: (chunk) => {
           stderrLog += chunk;
           this.handleProgressChunk(chunk, tracker, onProgress);
@@ -231,8 +266,12 @@ export class YtDlpService {
 
       if (result.exitCode !== 0) {
         this.logger.error(`yt-dlp download failed: ${result.stderr}`);
+        const normalized = normalizeYtDlpError(
+          result.stderr || stderrLog || 'Failed to download video',
+        );
         throw new YtDlpExecutionException(
-          result.stderr || 'Failed to download video',
+          normalized.message,
+          normalized.code,
         );
       }
 
@@ -261,6 +300,29 @@ export class YtDlpService {
 
       throw error;
     }
+  }
+
+  private buildCommonArgs(): string[] {
+    const args: string[] = [];
+
+    if (this.cookiesFilePath) {
+      args.push('--cookies', this.cookiesFilePath);
+    }
+
+    const proxy = this.configService.get<string>('downloader.proxy');
+    if (proxy) {
+      args.push('--proxy', proxy);
+    }
+
+    const retries = this.configService.get<number>('downloader.retries', 3);
+    args.push('--retries', String(retries));
+    args.push('--fragment-retries', String(retries));
+
+    return args;
+  }
+
+  private getTimeoutMs(): number {
+    return this.configService.get<number>('downloader.timeoutMs', 300_000);
   }
 
   private handleProgressChunk(

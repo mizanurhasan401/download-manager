@@ -18,6 +18,7 @@ import {
   YtDlpService,
 } from '../../../common/services/ytdlp.service';
 import { sanitizeFileName } from '../../../common/utils';
+import { normalizeYtDlpError } from '../../../common/utils/ytdlp-error.util';
 import { DownloadRepository } from '../../downloads/repositories/download.repository';
 import { PlaylistRepository } from '../../playlists/repositories/playlist.repository';
 
@@ -253,12 +254,13 @@ export class DownloadProcessor extends WorkerHost {
 
       this.logger.log(`Download job ${downloadJobId} completed`);
     } catch (error) {
-      const message =
+      const rawMessage =
         error instanceof Error ? error.message : 'Unknown download error';
+      const normalized = normalizeYtDlpError(rawMessage);
 
-      await this.downloadRepository.markFailed(downloadJobId, message);
+      await this.downloadRepository.markFailed(downloadJobId, normalized.message);
       await this.recomputePlaylistStatus(downloadJobId);
-      this.logger.error(`Download job ${downloadJobId} failed: ${message}`);
+      this.logger.error(`Download job ${downloadJobId} failed: ${normalized.message}`);
       throw error;
     }
   }

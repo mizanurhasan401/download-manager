@@ -18,6 +18,7 @@ import {
   formatEta,
   getDownloadFileUrl,
 } from '@/lib/utils';
+import { getYtDlpErrorMessage } from '@/lib/ytdlp-errors';
 import { MediaPlayer } from '@/components/download/media-player';
 import type { DownloadProgressEvent, DownloadStatus } from '@/types/api';
 
@@ -89,6 +90,10 @@ export function ProgressCard({ jobId, onDismiss }: ProgressCardProps) {
 
   const isActive = ['PENDING', 'QUEUED', 'PROCESSING', 'MERGING'].includes(data.status);
   const isFailed = data.status === 'FAILED' || data.status === 'CANCELLED';
+
+  const errorMessage = getYtDlpErrorMessage(
+    liveEvent?.errorMessage ?? data.errorMessage,
+  );
 
   const phaseLabel =
     liveEvent?.phaseLabel ?? (isActive ? 'Preparing...' : statusLabel[data.status]);
@@ -174,8 +179,8 @@ export function ProgressCard({ jobId, onDismiss }: ProgressCardProps) {
 
         {isFailed && (
           <div className="space-y-3">
-            {data.errorMessage && (
-              <p className="text-sm text-destructive">{data.errorMessage}</p>
+            {errorMessage && (
+              <p className="text-sm text-destructive">{errorMessage}</p>
             )}
             <Button
               variant="outline"

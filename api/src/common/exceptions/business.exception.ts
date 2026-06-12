@@ -1,4 +1,5 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
+import type { YtDlpErrorCode } from '../utils/ytdlp-error.util';
 
 export class BusinessException extends HttpException {
   constructor(message: string, status: HttpStatus = HttpStatus.BAD_REQUEST) {
@@ -25,8 +26,14 @@ export class DownloadNotReadyException extends BusinessException {
 }
 
 export class YtDlpExecutionException extends BusinessException {
-  constructor(message = 'Failed to extract video metadata') {
+  readonly errorCode?: YtDlpErrorCode;
+
+  constructor(
+    message = 'Failed to extract video metadata',
+    errorCode?: YtDlpErrorCode,
+  ) {
     super(message, HttpStatus.UNPROCESSABLE_ENTITY);
+    this.errorCode = errorCode;
   }
 }
 

@@ -43,5 +43,8 @@ lerna-debug.log*
 /storage/*
 !/storage/.gitkeep
 
+# yt-dlp cookies (never commit)
+cookies.txt
+
 # prisma
 prisma/migrations/**/migration_lock.toml

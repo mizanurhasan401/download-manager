@@ -46,6 +46,10 @@ install_system_packages() {
   if ! command -v yt-dlp >/dev/null 2>&1; then
     pip3 install --break-system-packages yt-dlp >/dev/null 2>&1 \
       || pip3 install yt-dlp >/dev/null
+  else
+    log "Upgrading yt-dlp..."
+    pip3 install --break-system-packages -U yt-dlp >/dev/null 2>&1 \
+      || pip3 install -U yt-dlp >/dev/null
   fi
 }
 
@@ -201,6 +205,7 @@ main() {
   log "Deployment complete."
   log "Site URL: ${PUBLIC_URL}"
   log "Domain: ${SITE_DOMAIN}"
+  log "YouTube cookies: see deploy/YOUTUBE-COOKIES.md (set YTDLP_COOKIES_FILE in deploy/env/api.env)"
   log "PM2 status: pm2 status"
 }
 

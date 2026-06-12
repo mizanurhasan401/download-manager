@@ -37,6 +37,10 @@ export const storageConfig = registerAs('storage', () => ({
 export const downloaderConfig = registerAs('downloader', () => ({
   ytdlpPath: process.env.YTDLP_PATH ?? 'yt-dlp',
   ffmpegPath: process.env.FFMPEG_PATH ?? 'ffmpeg',
+  cookiesFile: process.env.YTDLP_COOKIES_FILE,
+  proxy: process.env.YTDLP_PROXY,
+  retries: parseInt(process.env.YTDLP_RETRIES ?? '3', 10),
+  timeoutMs: parseInt(process.env.YTDLP_TIMEOUT_MS ?? '300000', 10),
   maxDownloadSizeMb: parseInt(process.env.MAX_DOWNLOAD_SIZE_MB ?? '2048', 10),
   maxConcurrentDownloads: parseInt(
     process.env.MAX_CONCURRENT_DOWNLOADS ?? '3',
