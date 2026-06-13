@@ -18,7 +18,8 @@ interface FileConverterDropzoneProps {
   variant?: 'hero' | 'compact';
 }
 
-const ACCEPTED_HINT = 'PDF · DOCX · PPTX · XLSX · TXT · PNG · JPG · WebP';
+const ACCEPTED_HINT =
+  'PDF · DOCX · PPTX · XLSX · TXT · PNG · JPG · WebP · HEIC · GIF · TIFF · BMP';
 
 export function FileConverterDropzone({
   file,

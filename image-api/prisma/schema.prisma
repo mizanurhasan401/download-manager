@@ -27,6 +27,10 @@ enum ImageFormat {
   PNG
   WEBP
   AVIF
+  HEIC
+  GIF
+  TIFF
+  BMP
 }
 
 enum ImageFileKind {

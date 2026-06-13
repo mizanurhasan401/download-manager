@@ -43,6 +43,9 @@ const TARGET_FORMAT_MAP: Record<TargetFormatDto, ConversionFileFormat> = {
   [TargetFormatDto.PNG]: ConversionFileFormat.PNG,
   [TargetFormatDto.JPG]: ConversionFileFormat.JPG,
   [TargetFormatDto.WEBP]: ConversionFileFormat.WEBP,
+  [TargetFormatDto.HEIC]: ConversionFileFormat.HEIC,
+  [TargetFormatDto.GIF]: ConversionFileFormat.GIF,
+  [TargetFormatDto.TIFF]: ConversionFileFormat.TIFF,
 };
 
 @Injectable()

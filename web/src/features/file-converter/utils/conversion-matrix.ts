@@ -6,27 +6,47 @@ import type {
 export type SourceCategory = 'document' | 'image';
 
 export interface ConversionOption {
-  /** Source format extension (lowercase) we can detect from the dropped file. */
   source: ConversionFileFormat;
-  /** Target format string accepted by the backend DTO. */
   target: CreateConversionBody['targetFormat'];
-  /** Display label shown in the format selector. */
   label: string;
-  /** Whether the conversion belongs to the document or image pipeline. */
   category: SourceCategory;
-  /** MIME types accepted for this source. */
   mimes: string[];
-  /** Extensions accepted (lowercase, no dot). */
   extensions: string[];
 }
 
-/**
- * Whitelisted source → target pairs. Mirrors `SUPPORTED_CONVERSIONS` in the
- * backend constants — kept in sync manually so the UI can filter targets per
- * source format without an extra round-trip.
- */
-export const CONVERSION_MATRIX: readonly ConversionOption[] = [
-  // Documents
+export const RASTER_IMAGE_TARGETS: ConversionFileFormat[] = [
+  'PNG',
+  'JPG',
+  'WEBP',
+  'HEIC',
+  'GIF',
+  'TIFF',
+];
+
+export const RASTER_IMAGE_SOURCES: Array<{
+  source: ConversionFileFormat;
+  mimes: string[];
+  extensions: string[];
+}> = [
+  { source: 'PNG', mimes: ['image/png'], extensions: ['png'] },
+  { source: 'JPG', mimes: ['image/jpeg'], extensions: ['jpg', 'jpeg'] },
+  { source: 'WEBP', mimes: ['image/webp'], extensions: ['webp'] },
+  {
+    source: 'HEIC',
+    mimes: ['image/heic', 'image/heif'],
+    extensions: ['heic', 'heif'],
+  },
+  { source: 'GIF', mimes: ['image/gif'], extensions: ['gif'] },
+  { source: 'TIFF', mimes: ['image/tiff'], extensions: ['tiff', 'tif'] },
+  {
+    source: 'BMP',
+    mimes: ['image/bmp', 'image/x-ms-bmp'],
+    extensions: ['bmp'],
+  },
+];
+
+/** Document-only pairs (mirrors backend SUPPORTED_CONVERSIONS). */
+export const DOCUMENT_CONVERSION_MATRIX: readonly ConversionOption[] = [
   {
     source: 'PDF',
     target: 'DOCX',
@@ -73,63 +93,85 @@ export const CONVERSION_MATRIX: readonly ConversionOption[] = [
     mimes: ['text/plain'],
     extensions: ['txt'],
   },
-  // Images
-  {
-    source: 'PNG',
-    target: 'JPG',
-    label: 'PNG → JPG',
-    category: 'image',
-    mimes: ['image/png'],
-    extensions: ['png'],
-  },
-  {
-    source: 'JPG',
-    target: 'PNG',
-    label: 'JPG → PNG',
-    category: 'image',
-    mimes: ['image/jpeg'],
-    extensions: ['jpg', 'jpeg'],
-  },
-  {
-    source: 'WEBP',
-    target: 'PNG',
-    label: 'WebP → PNG',
-    category: 'image',
-    mimes: ['image/webp'],
-    extensions: ['webp'],
-  },
-  {
-    source: 'PNG',
-    target: 'WEBP',
-    label: 'PNG → WebP',
-    category: 'image',
-    mimes: ['image/png'],
-    extensions: ['png'],
-  },
 ] as const;
 
+function findRasterSource(source: ConversionFileFormat) {
+  return RASTER_IMAGE_SOURCES.find((entry) => entry.source === source);
+}
+
+function buildRasterTargetOptions(
+  source: ConversionFileFormat,
+): ConversionOption[] {
+  const meta = findRasterSource(source);
+  if (!meta) return [];
+
+  return RASTER_IMAGE_TARGETS.filter((target) => target !== source).map(
+    (target) => ({
+      source,
+      target: target as CreateConversionBody['targetFormat'],
+      label: `${source} → ${target}`,
+      category: 'image' as const,
+      mimes: meta.mimes,
+      extensions: meta.extensions,
+    }),
+  );
+}
+
 export const ALL_ACCEPTED_MIMES = Array.from(
-  new Set(CONVERSION_MATRIX.flatMap((opt) => opt.mimes)),
+  new Set([
+    ...DOCUMENT_CONVERSION_MATRIX.flatMap((opt) => opt.mimes),
+    ...RASTER_IMAGE_SOURCES.flatMap((opt) => opt.mimes),
+  ]),
 ).join(',');
 
 export const ALL_ACCEPTED_EXTENSIONS = Array.from(
-  new Set(CONVERSION_MATRIX.flatMap((opt) => opt.extensions)),
+  new Set([
+    ...DOCUMENT_CONVERSION_MATRIX.flatMap((opt) => opt.extensions),
+    ...RASTER_IMAGE_SOURCES.flatMap((opt) => opt.extensions),
+  ]),
 );
 
-/**
- * Detect the source format of a `File` by inspecting MIME first and falling
- * back to its extension (browsers send empty MIME for `.txt` in some cases).
- */
 export function detectSourceFormat(file: File): ConversionFileFormat | null {
-  const byMime = CONVERSION_MATRIX.find((opt) => opt.mimes.includes(file.type));
-  if (byMime) return byMime.source;
+  for (const entry of RASTER_IMAGE_SOURCES) {
+    if (entry.mimes.includes(file.type)) {
+      return entry.source;
+    }
+  }
+
+  for (const opt of DOCUMENT_CONVERSION_MATRIX) {
+    if (opt.mimes.includes(file.type)) {
+      return opt.source;
+    }
+  }
+
   const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
-  const byExt = CONVERSION_MATRIX.find((opt) => opt.extensions.includes(ext));
-  return byExt?.source ?? null;
+
+  const rasterByExt = RASTER_IMAGE_SOURCES.find((entry) =>
+    entry.extensions.includes(ext),
+  );
+  if (rasterByExt) return rasterByExt.source;
+
+  const docByExt = DOCUMENT_CONVERSION_MATRIX.find((opt) =>
+    opt.extensions.includes(ext),
+  );
+  return docByExt?.source ?? null;
 }
 
 export function getAvailableTargets(
   source: ConversionFileFormat,
 ): ConversionOption[] {
-  return CONVERSION_MATRIX.filter((opt) => opt.source === source);
+  const rasterTargets = buildRasterTargetOptions(source);
+  if (rasterTargets.length > 0) {
+    return rasterTargets;
+  }
+
+  return DOCUMENT_CONVERSION_MATRIX.filter((opt) => opt.source === source);
 }
+
+/** @deprecated Use DOCUMENT_CONVERSION_MATRIX or dynamic raster helpers. */
+export const CONVERSION_MATRIX = [
+  ...DOCUMENT_CONVERSION_MATRIX,
+  ...RASTER_IMAGE_SOURCES.flatMap((entry) =>
+    buildRasterTargetOptions(entry.source),
+  ),
+] as const;

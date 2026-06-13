@@ -4,7 +4,8 @@ Standalone NestJS microservice that converts, resizes, and removes the backgroun
 
 ## Features (V1)
 
-- **Convert** between PNG / JPEG / WebP / AVIF (mozjpeg for JPEG, lossless PNG, quality-controlled WebP/AVIF)
+- **Convert** between PNG / JPEG / WebP / AVIF / HEIC / GIF / TIFF (mozjpeg for JPEG, lossless PNG, quality-controlled WebP/AVIF/HEIC)
+- **HEIC/HEIF, GIF, TIFF, BMP input** — BMP is input-only on most Sharp builds; see [`deploy/HEIC-SETUP.md`](../deploy/HEIC-SETUP.md)
 - **Resize** to any width × height with `cover` / `contain` / `fill` / `inside` / `outside` fit
 - **Remove background** powered by `@imgly/background-removal-node` (pre-warmed on boot)
 

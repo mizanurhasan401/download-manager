@@ -15,6 +15,9 @@ export enum TargetFormatDto {
   PNG = 'PNG',
   JPG = 'JPG',
   WEBP = 'WEBP',
+  HEIC = 'HEIC',
+  GIF = 'GIF',
+  TIFF = 'TIFF',
 }
 
 const toInt = ({ value }: { value: unknown }): unknown => {

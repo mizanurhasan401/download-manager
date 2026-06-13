@@ -62,9 +62,13 @@ export class ImagesController {
     schema: {
       type: 'object',
       properties: {
-        file: { type: 'string', format: 'binary' },
+        file: { type: 'string', format: 'binary', description: 'PNG, JPEG, WebP, AVIF, HEIC, GIF, TIFF, or BMP' },
         operation: { type: 'string', enum: ['CONVERT', 'RESIZE', 'REMOVE_BACKGROUND'] },
-        format: { type: 'string', enum: ['jpeg', 'png', 'webp', 'avif'] },
+        format: {
+          type: 'string',
+          enum: ['jpeg', 'png', 'webp', 'avif', 'heic', 'gif', 'tiff'],
+          description: 'Output format',
+        },
         quality: { type: 'integer', minimum: 1, maximum: 100 },
         width: { type: 'integer', minimum: 1, maximum: 8192 },
         height: { type: 'integer', minimum: 1, maximum: 8192 },

@@ -37,6 +37,9 @@ const FORMAT_OPTIONS = [
   { value: 'jpeg', label: 'JPG' },
   { value: 'webp', label: 'WebP' },
   { value: 'avif', label: 'AVIF' },
+  { value: 'heic', label: 'HEIC' },
+  { value: 'gif', label: 'GIF' },
+  { value: 'tiff', label: 'TIFF' },
 ] as const;
 
 const intRegex = /^[0-9]*$/;

@@ -11,7 +11,7 @@ import {
   ImageOperation,
   Prisma,
 } from '@prisma/client';
-import { QUEUE_NAMES, SUPPORTED_INPUT_MIMES } from '../../common/constants';
+import { QUEUE_NAMES } from '../../common/constants';
 import {
   ImageJobNotFoundException,
   ImageJobNotReadyException,
@@ -19,7 +19,13 @@ import {
   ImageTooLargeException,
   UnsupportedImageFormatException,
 } from '../../common/exceptions/business.exception';
-import { hashBuffer, sanitizeFileName } from '../../common/utils';
+import {
+  hashBuffer,
+  inferUploadMime,
+  isFallbackExtension,
+  isSupportedInputMime,
+  sanitizeFileName,
+} from '../../common/utils';
 import { LocalStorageService } from '../storage/local-storage.service';
 import { SharpService } from '../processing/sharp.service';
 import {
@@ -71,11 +77,12 @@ export class ImagesService {
 
     const safeName = sanitizeFileName(file.originalname || 'image');
     const fileName = `${job.id}_${Date.now()}_${safeName}`;
+    const uploadMime = inferUploadMime(safeName, file.mimetype);
     const stored = await this.storage.writeBuffer(
       'ORIGINALS',
       fileName,
       file.buffer,
-      file.mimetype,
+      uploadMime,
     );
 
     const meta = await this.sharp.extractMetadata(stored.path);
@@ -181,23 +188,35 @@ export class ImagesService {
         `File exceeds maximum upload size of ${(this.maxUploadBytes / (1024 * 1024)).toFixed(0)} MB`,
       );
     }
-    if (!SUPPORTED_INPUT_MIMES.includes(file.mimetype as (typeof SUPPORTED_INPUT_MIMES)[number])) {
+    if (!isSupportedInputMime(file.mimetype) && !isFallbackExtension(file.originalname || '')) {
       throw new UnsupportedImageFormatException(
-        `Unsupported MIME type: ${file.mimetype}. Allowed: ${SUPPORTED_INPUT_MIMES.join(', ')}`,
+        `Unsupported MIME type: ${file.mimetype}. Allowed: PNG, JPEG, WebP, AVIF, HEIC, GIF, TIFF, BMP`,
       );
     }
   }
 
   private async validateMagicBytes(file: Express.Multer.File): Promise<void> {
+    const fallbackByName = isFallbackExtension(file.originalname || '');
     const detected = await fileTypeFromBuffer(file.buffer);
+
     if (!detected) {
+      if (fallbackByName) {
+        return;
+      }
       throw new UnsupportedImageFormatException('Unable to detect file type');
     }
-    if (!SUPPORTED_INPUT_MIMES.includes(detected.mime as (typeof SUPPORTED_INPUT_MIMES)[number])) {
-      throw new UnsupportedImageFormatException(
-        `Detected unsupported file type: ${detected.mime}`,
-      );
+
+    if (isSupportedInputMime(detected.mime)) {
+      return;
     }
+
+    if (fallbackByName) {
+      return;
+    }
+
+    throw new UnsupportedImageFormatException(
+      `Detected unsupported file type: ${detected.mime}`,
+    );
   }
 
   private normalizeParameters(dto: CreateImageJobDto): Record<string, unknown> {
@@ -234,10 +253,13 @@ export class ImagesService {
     switch (format) {
       case OutputFormatDto.JPEG:
       case OutputFormatDto.WEBP:
+      case OutputFormatDto.HEIC:
         return 82;
       case OutputFormatDto.AVIF:
         return 60;
       case OutputFormatDto.PNG:
+      case OutputFormatDto.GIF:
+      case OutputFormatDto.TIFF:
       default:
         return 90;
     }

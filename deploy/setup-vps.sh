@@ -38,6 +38,8 @@ install_system_packages() {
     gnupg \
     ffmpeg \
     libreoffice \
+    libheif1 \
+    libde265-0 \
     python3 \
     python3-pip \
     build-essential \
@@ -123,6 +125,7 @@ build_services() {
   pnpm install --frozen-lockfile
   set -a && source .env.development && set +a
   pnpm run prisma:migrate:prod
+  pnpm rebuild sharp
   pnpm run build
   mkdir -p storage
 
@@ -131,6 +134,7 @@ build_services() {
   pnpm install --frozen-lockfile
   set -a && source .env.development && set +a
   pnpm run prisma:migrate:prod
+  pnpm rebuild sharp
   pnpm run build
   mkdir -p storage
 
@@ -206,6 +210,7 @@ main() {
   log "Site URL: ${PUBLIC_URL}"
   log "Domain: ${SITE_DOMAIN}"
   log "YouTube cookies: see deploy/YOUTUBE-COOKIES.md (set YTDLP_COOKIES_FILE in deploy/env/api.env)"
+  log "HEIC images: see deploy/HEIC-SETUP.md (libheif installed; sharp rebuilt on deploy)"
   log "PM2 status: pm2 status"
 }
 

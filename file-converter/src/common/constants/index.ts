@@ -22,26 +22,63 @@ export const SUPPORTED_INPUT_MIMES = [
   'image/png',
   'image/jpeg',
   'image/webp',
+  'image/heic',
+  'image/heif',
+  'image/gif',
+  'image/tiff',
+  'image/bmp',
+  'image/x-ms-bmp',
 ] as const;
+
+export const RASTER_IMAGE_FORMATS = [
+  'PNG',
+  'JPG',
+  'WEBP',
+  'HEIC',
+  'GIF',
+  'TIFF',
+  'BMP',
+] as const;
+
+/** Formats Sharp can encode on this stack (BMP is input-only). */
+export const RASTER_IMAGE_OUTPUT_FORMATS = [
+  'PNG',
+  'JPG',
+  'WEBP',
+  'HEIC',
+  'GIF',
+  'TIFF',
+] as const;
+
+export type RasterImageFormat = (typeof RASTER_IMAGE_FORMATS)[number];
+
+export function isRasterImageFormat(format: string): format is RasterImageFormat {
+  return (RASTER_IMAGE_FORMATS as readonly string[]).includes(format);
+}
+
+export function isSupportedImageConversion(
+  source: string,
+  target: string,
+): boolean {
+  return (
+    isRasterImageFormat(source) &&
+    (RASTER_IMAGE_OUTPUT_FORMATS as readonly string[]).includes(target) &&
+    source !== target
+  );
+}
 
 export const LIBREOFFICE_DEFAULT_TIMEOUT_MS = 120_000;
 
 export const SHARP_TIMEOUT_MS = 60_000;
 
 /**
- * Whitelisted source → target conversions (MVP).
- * Used by the service to reject unsupported combinations before queuing work.
+ * Document-only conversion pairs. Raster image conversions are validated
+ * programmatically via `isSupportedImageConversion`.
  */
 export const SUPPORTED_CONVERSIONS = [
-  // Documents
   { source: 'PDF', target: 'DOCX' },
   { source: 'DOCX', target: 'PDF' },
   { source: 'PPTX', target: 'PDF' },
   { source: 'XLSX', target: 'PDF' },
   { source: 'TXT', target: 'PDF' },
-  // Images
-  { source: 'PNG', target: 'JPG' },
-  { source: 'JPG', target: 'PNG' },
-  { source: 'WEBP', target: 'PNG' },
-  { source: 'PNG', target: 'WEBP' },
 ] as const;

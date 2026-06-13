@@ -18,6 +18,9 @@ export enum OutputFormatDto {
   PNG = 'png',
   WEBP = 'webp',
   AVIF = 'avif',
+  HEIC = 'heic',
+  GIF = 'gif',
+  TIFF = 'tiff',
 }
 
 export enum ResizeFitDto {

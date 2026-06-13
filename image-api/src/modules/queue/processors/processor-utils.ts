@@ -78,6 +78,16 @@ export function toImageFormatEnum(format: string): ImageFormat {
       return ImageFormat.WEBP;
     case 'avif':
       return ImageFormat.AVIF;
+    case 'heic':
+    case 'heif':
+      return ImageFormat.HEIC;
+    case 'gif':
+      return ImageFormat.GIF;
+    case 'tiff':
+    case 'tif':
+      return ImageFormat.TIFF;
+    case 'bmp':
+      return ImageFormat.BMP;
     default:
       return ImageFormat.PNG;
   }

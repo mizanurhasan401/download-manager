@@ -14,7 +14,8 @@ interface ImageDropzoneProps {
   variant?: 'hero' | 'compact';
 }
 
-const DEFAULT_ACCEPT = 'image/png,image/jpeg,image/webp,image/avif';
+const DEFAULT_ACCEPT =
+  'image/png,image/jpeg,image/webp,image/avif,image/heic,image/heif,image/gif,image/tiff,image/bmp,image/x-ms-bmp,.heic,.heif,.gif,.tiff,.tif,.bmp';
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -58,8 +59,13 @@ export function ImageDropzone({
         return;
       }
       const acceptedTypes = accept.split(',').map((t) => t.trim());
-      if (!acceptedTypes.includes(incoming.type)) {
-        setErrorMessage('Unsupported file type. Use PNG, JPG, WebP or AVIF.');
+      const typeOk =
+        acceptedTypes.includes(incoming.type) ||
+        acceptedTypes.some(
+          (t) => t.startsWith('.') && incoming.name.toLowerCase().endsWith(t),
+        );
+      if (!typeOk) {
+        setErrorMessage('Unsupported file type. Use PNG, JPG, WebP, AVIF, HEIC, GIF, TIFF, or BMP.');
         return;
       }
       onSelect(incoming);

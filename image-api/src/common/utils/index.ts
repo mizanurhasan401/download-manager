@@ -1,4 +1,5 @@
 import { createHash } from 'crypto';
+import { SUPPORTED_INPUT_MIMES } from '../constants';
 
 export function sanitizeFileName(name: string): string {
   return name
@@ -34,6 +35,16 @@ export function inferExtensionFromFormat(format: string): string {
       return 'webp';
     case 'avif':
       return 'avif';
+    case 'heic':
+    case 'heif':
+      return 'heic';
+    case 'gif':
+      return 'gif';
+    case 'tiff':
+    case 'tif':
+      return 'tiff';
+    case 'bmp':
+      return 'bmp';
     default:
       return 'bin';
   }
@@ -50,7 +61,59 @@ export function inferMimeFromFormat(format: string): string {
       return 'image/webp';
     case 'avif':
       return 'image/avif';
+    case 'heic':
+    case 'heif':
+      return 'image/heic';
+    case 'gif':
+      return 'image/gif';
+    case 'tiff':
+    case 'tif':
+      return 'image/tiff';
+    case 'bmp':
+      return 'image/bmp';
     default:
       return 'application/octet-stream';
+  }
+}
+
+export function isHeicExtension(fileName: string): boolean {
+  const ext = fileName.split('.').pop()?.toLowerCase() ?? '';
+  return ext === 'heic' || ext === 'heif';
+}
+
+export function isFallbackExtension(fileName: string): boolean {
+  const ext = fileName.split('.').pop()?.toLowerCase() ?? '';
+  return (
+    ext === 'heic' ||
+    ext === 'heif' ||
+    ext === 'gif' ||
+    ext === 'tiff' ||
+    ext === 'tif' ||
+    ext === 'bmp'
+  );
+}
+
+export function isSupportedInputMime(mime: string): boolean {
+  return (SUPPORTED_INPUT_MIMES as readonly string[]).includes(mime);
+}
+
+export function inferUploadMime(fileName: string, mimeType: string): string {
+  if (isSupportedInputMime(mimeType)) {
+    return mimeType;
+  }
+  const ext = fileName.split('.').pop()?.toLowerCase() ?? '';
+  switch (ext) {
+    case 'heic':
+    case 'heif':
+      return 'image/heic';
+    case 'gif':
+      return 'image/gif';
+    case 'tiff':
+    case 'tif':
+      return 'image/tiff';
+    case 'bmp':
+      return 'image/bmp';
+    default:
+      return mimeType;
   }
 }

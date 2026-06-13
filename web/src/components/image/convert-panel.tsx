@@ -21,6 +21,9 @@ const FORMAT_OPTIONS: { value: OutputFormat; label: string; hint: string }[] = [
   { value: 'jpeg', label: 'JPG', hint: 'Smaller files, no alpha' },
   { value: 'webp', label: 'WebP', hint: 'Best balance' },
   { value: 'avif', label: 'AVIF', hint: 'Smallest, slower encode' },
+  { value: 'heic', label: 'HEIC', hint: 'Apple photos, needs libheif on server' },
+  { value: 'gif', label: 'GIF', hint: 'First frame only if animated' },
+  { value: 'tiff', label: 'TIFF', hint: 'Lossless, print-ready' },
 ];
 
 export function ConvertPanel({ format, quality, onChange }: ConvertPanelProps) {
@@ -52,7 +55,7 @@ export function ConvertPanel({ format, quality, onChange }: ConvertPanelProps) {
         </Select>
       </div>
 
-      {format !== 'png' && (
+      {!['png', 'gif', 'tiff'].includes(format) && (
         <div className="space-y-1.5">
           <label
             htmlFor="convert-quality"

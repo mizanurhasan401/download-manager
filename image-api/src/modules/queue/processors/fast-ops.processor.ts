@@ -88,7 +88,7 @@ export class FastOpsProcessor extends WorkerHost {
         width: info.width,
         height: info.height,
         format,
-        hasAlpha: format !== 'jpeg',
+        hasAlpha: format !== 'jpeg' && format !== 'heic',
         sizeBytes: stat.size,
       },
       repo: this.repo,
@@ -109,44 +109,65 @@ export class FastOpsProcessor extends WorkerHost {
     const fit = (parameters.fit as ResizeFitOption | undefined) ?? 'cover';
     const quality = parameters.quality as number | undefined;
 
-    const sourceMeta = await this.sharp.extractMetadata(inputPath);
     const outFormat: TargetFormat =
-      format ??
-      (sourceMeta.format === 'jpeg' || sourceMeta.format === 'jpg'
-        ? 'jpeg'
-        : sourceMeta.format === 'webp'
-          ? 'webp'
-          : sourceMeta.format === 'avif'
-            ? 'avif'
-            : 'png');
-
-    const fileName = buildOutputFileName(originalFileName, outFormat, `resized_${width ?? 'auto'}x${height ?? 'auto'}`);
+      format ?? this.inferAutoFormat(await this.sharp.extractMetadata(inputPath));
+    const fileName = buildOutputFileName(
+      originalFileName,
+      outFormat,
+      `resized_${width ?? 'auto'}x${height ?? 'auto'}`,
+    );
     const outputPath = buildOutputPath(this.storage, fileName);
 
     const info = await this.sharp.resize(inputPath, outputPath, {
       width,
       height,
       fit,
-      format: outFormat,
+      format,
       quality,
     });
     const stat = await fs.stat(outputPath);
+    const resolvedFormat = (format ?? info.format) as TargetFormat;
 
     await finalizeJob({
       jobId,
       output: {
         outputPath,
         fileName,
-        mimeType: mimeForFormat(outFormat),
+        mimeType: mimeForFormat(resolvedFormat),
         width: info.width,
         height: info.height,
-        format: outFormat,
-        hasAlpha: outFormat !== 'jpeg',
+        format: resolvedFormat,
+        hasAlpha: resolvedFormat !== 'jpeg' && resolvedFormat !== 'heic',
         sizeBytes: stat.size,
       },
       repo: this.repo,
       sharp: this.sharp,
       logger: this.logger,
     });
+  }
+
+  private inferAutoFormat(meta: { format?: string | null }): TargetFormat {
+    switch ((meta.format ?? 'png').toLowerCase()) {
+      case 'jpeg':
+      case 'jpg':
+        return 'jpeg';
+      case 'webp':
+        return 'webp';
+      case 'avif':
+        return 'avif';
+      case 'gif':
+        return 'gif';
+      case 'tiff':
+      case 'tif':
+        return 'tiff';
+      case 'bmp':
+        return 'png';
+      case 'heif':
+      case 'heic':
+        return 'jpeg';
+      case 'png':
+      default:
+        return 'png';
+    }
   }
 }

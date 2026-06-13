@@ -17,7 +17,11 @@ export type ConversionFileFormat =
   | 'TXT'
   | 'PNG'
   | 'JPG'
-  | 'WEBP';
+  | 'WEBP'
+  | 'HEIC'
+  | 'GIF'
+  | 'TIFF'
+  | 'BMP';
 
 export type ConversionFileKind = 'ORIGINAL' | 'OUTPUT';
 
@@ -52,7 +56,15 @@ export interface ConversionJob {
  * appended to FormData separately).
  */
 export interface CreateConversionBody {
-  targetFormat: 'PDF' | 'DOCX' | 'PNG' | 'JPG' | 'WEBP';
+  targetFormat:
+    | 'PDF'
+    | 'DOCX'
+    | 'PNG'
+    | 'JPG'
+    | 'WEBP'
+    | 'HEIC'
+    | 'GIF'
+    | 'TIFF';
   quality?: number;
 }
 

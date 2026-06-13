@@ -18,7 +18,14 @@ import type {
   CreateConversionBody,
 } from '@/types/file-converter';
 
-const IMAGE_TARGETS = new Set(['PNG', 'JPG', 'WEBP']);
+const IMAGE_TARGETS = new Set([
+  'PNG',
+  'JPG',
+  'WEBP',
+  'HEIC',
+  'GIF',
+  'TIFF',
+]);
 
 export function FileConverterWorkflow() {
   const [file, setFile] = useState<File | null>(null);

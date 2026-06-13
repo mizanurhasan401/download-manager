@@ -1,5 +1,6 @@
 import { createHash } from 'crypto';
 import { ConversionFileFormat } from '@prisma/client';
+import { isRasterImageFormat } from '../constants';
 
 export function sanitizeFileName(name: string): string {
   return name
@@ -42,6 +43,14 @@ export function getExtensionForFormat(format: ConversionFileFormat): string {
       return 'jpg';
     case ConversionFileFormat.WEBP:
       return 'webp';
+    case ConversionFileFormat.HEIC:
+      return 'heic';
+    case ConversionFileFormat.GIF:
+      return 'gif';
+    case ConversionFileFormat.TIFF:
+      return 'tiff';
+    case ConversionFileFormat.BMP:
+      return 'bmp';
     default:
       return 'bin';
   }
@@ -65,6 +74,14 @@ export function getMimeForFormat(format: ConversionFileFormat): string {
       return 'image/jpeg';
     case ConversionFileFormat.WEBP:
       return 'image/webp';
+    case ConversionFileFormat.HEIC:
+      return 'image/heic';
+    case ConversionFileFormat.GIF:
+      return 'image/gif';
+    case ConversionFileFormat.TIFF:
+      return 'image/tiff';
+    case ConversionFileFormat.BMP:
+      return 'image/bmp';
     default:
       return 'application/octet-stream';
   }
@@ -93,6 +110,16 @@ export function mimeToFormat(mime: string): ConversionFileFormat | null {
       return ConversionFileFormat.JPG;
     case 'image/webp':
       return ConversionFileFormat.WEBP;
+    case 'image/heic':
+    case 'image/heif':
+      return ConversionFileFormat.HEIC;
+    case 'image/gif':
+      return ConversionFileFormat.GIF;
+    case 'image/tiff':
+      return ConversionFileFormat.TIFF;
+    case 'image/bmp':
+    case 'image/x-ms-bmp':
+      return ConversionFileFormat.BMP;
     default:
       return null;
   }
@@ -125,15 +152,21 @@ export function extensionToFormat(
       return ConversionFileFormat.JPG;
     case 'webp':
       return ConversionFileFormat.WEBP;
+    case 'heic':
+    case 'heif':
+      return ConversionFileFormat.HEIC;
+    case 'gif':
+      return ConversionFileFormat.GIF;
+    case 'tiff':
+    case 'tif':
+      return ConversionFileFormat.TIFF;
+    case 'bmp':
+      return ConversionFileFormat.BMP;
     default:
       return null;
   }
 }
 
 export function isImageFormat(format: ConversionFileFormat): boolean {
-  return (
-    format === ConversionFileFormat.PNG ||
-    format === ConversionFileFormat.JPG ||
-    format === ConversionFileFormat.WEBP
-  );
+  return isRasterImageFormat(format);
 }

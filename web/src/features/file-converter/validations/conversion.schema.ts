@@ -6,6 +6,9 @@ export const TARGET_FORMAT_VALUES = [
   'PNG',
   'JPG',
   'WEBP',
+  'HEIC',
+  'GIF',
+  'TIFF',
 ] as const;
 
 export const conversionSchema = z.object({

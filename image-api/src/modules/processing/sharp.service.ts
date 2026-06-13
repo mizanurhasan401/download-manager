@@ -1,13 +1,23 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import * as path from 'path';
 import sharp, { FitEnum, Sharp } from 'sharp';
 import {
   ImageProcessingException,
   UnsupportedImageFormatException,
 } from '../../common/exceptions/business.exception';
+import { isFallbackExtension, isHeicExtension } from '../../common/utils';
 import { ImageMetadata } from '../../common/interfaces';
 
-export type TargetFormat = 'jpeg' | 'png' | 'webp' | 'avif';
+export type TargetFormat =
+  | 'jpeg'
+  | 'png'
+  | 'webp'
+  | 'avif'
+  | 'heic'
+  | 'gif'
+  | 'tiff';
+
 export type ResizeFitOption = keyof FitEnum;
 
 export interface ConvertOptions {
@@ -38,13 +48,16 @@ export class SharpService implements OnModuleInit {
     sharp.cache(false);
     sharp.concurrency(1);
     this.logger.log(
-      `Sharp initialized (max input pixels = ${this.maxInputPixels})`,
+      `Sharp initialized (max input pixels = ${this.maxInputPixels}); HEIC requires libheif — see deploy/HEIC-SETUP.md`,
     );
   }
 
   async extractMetadata(filePath: string): Promise<ImageMetadata> {
     try {
-      const meta = await sharp(filePath).metadata();
+      const meta = await sharp(filePath, {
+        limitInputPixels: this.maxInputPixels,
+        failOn: 'error',
+      }).metadata();
       return {
         width: meta.width,
         height: meta.height,
@@ -53,9 +66,7 @@ export class SharpService implements OnModuleInit {
         size: meta.size ?? 0,
       };
     } catch (error) {
-      throw new ImageProcessingException(
-        `Failed to read image metadata: ${error instanceof Error ? error.message : 'unknown'}`,
-      );
+      throw this.wrapSharpError(error, filePath, 'read metadata');
     }
   }
 
@@ -67,7 +78,7 @@ export class SharpService implements OnModuleInit {
     const pipeline = this.basePipeline(inputPath);
     const finalized = this.applyOutputFormat(pipeline, options.format, options.quality);
 
-    return await this.executePipeline(finalized, outputPath);
+    return await this.executePipeline(finalized, outputPath, inputPath);
   }
 
   async resize(
@@ -90,7 +101,7 @@ export class SharpService implements OnModuleInit {
     const targetFormat = options.format ?? this.normalizeFormat(meta.format);
     const finalized = this.applyOutputFormat(pipeline, targetFormat, options.quality);
 
-    return await this.executePipeline(finalized, outputPath);
+    return await this.executePipeline(finalized, outputPath, inputPath);
   }
 
   async finalizeBuffer(
@@ -133,6 +144,12 @@ export class SharpService implements OnModuleInit {
         return pipeline.webp({ quality: q, effort: 4 });
       case 'avif':
         return pipeline.avif({ quality: q, effort: 4 });
+      case 'heic':
+        return pipeline.heif({ quality: q, compression: 'hevc' });
+      case 'gif':
+        return pipeline.gif();
+      case 'tiff':
+        return pipeline.tiff({ compression: 'lzw' });
       default:
         throw new UnsupportedImageFormatException(`Unsupported output format: ${String(format)}`);
     }
@@ -141,6 +158,7 @@ export class SharpService implements OnModuleInit {
   private async executePipeline(
     pipeline: Sharp,
     outputPath: string,
+    inputPath?: string,
   ): Promise<{ width: number; height: number; format: string }> {
     try {
       const info = await pipeline.toFile(outputPath);
@@ -150,10 +168,36 @@ export class SharpService implements OnModuleInit {
         format: info.format,
       };
     } catch (error) {
-      throw new ImageProcessingException(
-        `Sharp processing failed: ${error instanceof Error ? error.message : 'unknown'}`,
+      throw this.wrapSharpError(
+        error,
+        inputPath ?? outputPath,
+        'process image',
       );
     }
+  }
+
+  private isHeicPath(filePath: string, format?: string | null): boolean {
+    if (format === 'heif' || format === 'heic') {
+      return true;
+    }
+    return isHeicExtension(path.basename(filePath));
+  }
+
+  private wrapSharpError(
+    error: unknown,
+    filePath: string,
+    action: string,
+  ): ImageProcessingException {
+    const message = error instanceof Error ? error.message : 'unknown';
+    if (
+      this.isHeicPath(filePath) &&
+      /heif|heic|libheif|bad seek|unsupported|compression format/i.test(message)
+    ) {
+      return new ImageProcessingException(
+        'HEIC support requires libheif — see deploy/HEIC-SETUP.md',
+      );
+    }
+    return new ImageProcessingException(`${action}: ${message}`);
   }
 
   private normalizeFormat(format: string | undefined): TargetFormat {
@@ -165,6 +209,16 @@ export class SharpService implements OnModuleInit {
         return 'webp';
       case 'avif':
         return 'avif';
+      case 'heif':
+      case 'heic':
+        return 'jpeg';
+      case 'gif':
+        return 'gif';
+      case 'tiff':
+      case 'tif':
+        return 'tiff';
+      case 'bmp':
+        return 'png';
       case 'png':
       default:
         return 'png';

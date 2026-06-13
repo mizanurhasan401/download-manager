@@ -3,7 +3,7 @@ import {
   ConversionCategory,
   ConversionFileFormat,
 } from '@prisma/client';
-import { SUPPORTED_CONVERSIONS } from '../../common/constants';
+import { SUPPORTED_CONVERSIONS, isSupportedImageConversion } from '../../common/constants';
 import {
   UnsupportedConversionException,
 } from '../../common/exceptions/business.exception';
@@ -53,6 +53,10 @@ export class ConversionRouterService {
     source: ConversionFileFormat,
     target: ConversionFileFormat,
   ): void {
+    if (isSupportedImageConversion(source, target)) {
+      return;
+    }
+
     const supported = SUPPORTED_CONVERSIONS.some(
       (pair) => pair.source === source && pair.target === target,
     );

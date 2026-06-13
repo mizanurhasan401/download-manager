@@ -31,6 +31,10 @@ enum ConversionFileFormat {
   PNG
   JPG
   WEBP
+  HEIC
+  GIF
+  TIFF
+  BMP
 }
 
 enum ConversionFileKind {

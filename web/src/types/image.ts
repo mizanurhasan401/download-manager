@@ -8,7 +8,14 @@ export type ImageJobStatus =
   | 'FAILED'
   | 'CANCELLED';
 
-export type OutputFormat = 'jpeg' | 'png' | 'webp' | 'avif';
+export type OutputFormat =
+  | 'jpeg'
+  | 'png'
+  | 'webp'
+  | 'avif'
+  | 'heic'
+  | 'gif'
+  | 'tiff';
 
 export type ResizeFit = 'cover' | 'contain' | 'fill' | 'inside' | 'outside';
 
