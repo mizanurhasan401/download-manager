@@ -1,8 +1,9 @@
 'use client';
 
-import { UploadCloud, X } from 'lucide-react';
+import { ImageIcon, Loader2, UploadCloud, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { createImagePreviewUrl } from '@/lib/image-preview';
 import { cn } from '@/lib/utils';
 
 interface ImageDropzoneProps {
@@ -33,17 +34,46 @@ export function ImageDropzone({
 }: ImageDropzoneProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewFailed, setPreviewFailed] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (!file) {
       setPreviewUrl(null);
+      setPreviewLoading(false);
+      setPreviewFailed(false);
       return;
     }
-    const url = URL.createObjectURL(file);
-    setPreviewUrl(url);
-    return () => URL.revokeObjectURL(url);
+
+    let cancelled = false;
+    let objectUrl: string | null = null;
+
+    setPreviewLoading(true);
+    setPreviewFailed(false);
+    setPreviewUrl(null);
+
+    void createImagePreviewUrl(file)
+      .then((url) => {
+        if (cancelled) {
+          URL.revokeObjectURL(url);
+          return;
+        }
+        objectUrl = url;
+        setPreviewUrl(url);
+        setPreviewLoading(false);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setPreviewLoading(false);
+        setPreviewFailed(true);
+      });
+
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
   }, [file]);
 
   const validateAndSet = useCallback(
@@ -82,7 +112,7 @@ export function ImageDropzone({
     onSelect(null);
   };
 
-  if (file && previewUrl) {
+  if (file) {
     return (
       <div className="space-y-3">
         <div
@@ -92,12 +122,29 @@ export function ImageDropzone({
           )}
         >
           <div className="flex aspect-square w-full items-center justify-center bg-[linear-gradient(45deg,#2a2a2a_25%,transparent_25%),linear-gradient(-45deg,#2a2a2a_25%,transparent_25%),linear-gradient(45deg,transparent_75%,#2a2a2a_75%),linear-gradient(-45deg,transparent_75%,#2a2a2a_75%)] bg-size-[20px_20px] bg-position-[0_0,0_10px,10px_-10px,-10px_0px]">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={previewUrl}
-              alt={file.name}
-              className="max-h-full max-w-full object-contain"
-            />
+            {previewLoading && (
+              <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                <Loader2 className="h-8 w-8 animate-spin" />
+                <p className="text-xs">Generating preview…</p>
+              </div>
+            )}
+            {!previewLoading && previewUrl && !previewFailed && (
+              <>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={previewUrl}
+                  alt={file.name}
+                  className="max-h-full max-w-full object-contain"
+                  onError={() => setPreviewFailed(true)}
+                />
+              </>
+            )}
+            {!previewLoading && previewFailed && (
+              <div className="flex flex-col items-center gap-2 px-4 text-center text-muted-foreground">
+                <ImageIcon className="h-10 w-10" />
+                <p className="text-xs">Preview unavailable — processing still works</p>
+              </div>
+            )}
           </div>
         </div>
 
@@ -196,7 +243,7 @@ export function ImageDropzone({
             <span className="text-primary">Click to upload</span> or drag &amp; drop
           </p>
           <p className="text-xs text-muted-foreground">
-            PNG · JPG · WebP · AVIF — up to {maxSizeMb} MB
+            PNG · JPG · WebP · AVIF · HEIC · GIF · TIFF · BMP — up to {maxSizeMb} MB
           </p>
         </div>
 

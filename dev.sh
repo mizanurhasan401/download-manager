@@ -34,6 +34,28 @@ start_infra() {
   fi
 }
 
+run_migrations() {
+  log "Running database migrations..."
+
+  (
+    cd "${ROOT}/api"
+    set -a && source .env.development && set +a
+    pnpm prisma:migrate
+  )
+
+  (
+    cd "${ROOT}/image-api"
+    set -a && source .env.development && set +a
+    pnpm prisma:migrate
+  )
+
+  (
+    cd "${ROOT}/file-converter"
+    set -a && source .env.development && set +a
+    pnpm prisma:migrate
+  )
+}
+
 PIDS=()
 
 cleanup() {
@@ -64,6 +86,7 @@ main() {
   require_cmd pnpm
 
   start_infra
+  run_migrations
 
   trap cleanup EXIT INT TERM
 
