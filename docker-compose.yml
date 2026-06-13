@@ -1,0 +1,201 @@
+# Full stack — `docker compose up -d --build` brings up everything:
+# postgres, redis, the three HTTP services, their three workers, the web
+# frontend, and the Nginx gateway (single /api entrypoint on port 80).
+#
+# `dev.sh` reuses this file but only starts `postgres` and `redis` so the apps
+# can run locally with hot reload.
+
+x-postgres-creds: &postgres-creds
+  POSTGRES_USER: download_manager
+  POSTGRES_PASSWORD: download_manager
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: download-manager-postgres
+    restart: unless-stopped
+    environment:
+      <<: *postgres-creds
+      POSTGRES_DB: download_manager
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./deploy/init-databases.sql:/docker-entrypoint-initdb.d/init-databases.sql:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U download_manager -d download_manager']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: download-manager-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  video-api:
+    build: ./video-api
+    container_name: download-manager-video-api
+    restart: unless-stopped
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    env_file:
+      - ./video-api/.env.development
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      DATABASE_URL: postgresql://download_manager:download_manager@postgres:5432/download_manager?schema=public
+      POSTGRES_HOST: postgres
+      REDIS_HOST: redis
+      YTDLP_PATH: yt-dlp
+      FFMPEG_PATH: ffmpeg
+    command: ['sh', '-c', 'node_modules/.bin/prisma migrate deploy && node dist/main.js']
+    volumes:
+      - video_storage:/app/storage
+
+  video-worker:
+    build: ./video-api
+    container_name: download-manager-video-worker
+    restart: unless-stopped
+    depends_on:
+      video-api: { condition: service_started }
+    env_file:
+      - ./video-api/.env.development
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://download_manager:download_manager@postgres:5432/download_manager?schema=public
+      POSTGRES_HOST: postgres
+      REDIS_HOST: redis
+      YTDLP_PATH: yt-dlp
+      FFMPEG_PATH: ffmpeg
+    command: ['node', 'dist/workers/video.worker.js']
+    volumes:
+      - video_storage:/app/storage
+
+  image-api:
+    build: ./image-api
+    container_name: download-manager-image-api
+    restart: unless-stopped
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    env_file:
+      - ./image-api/.env.development
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      DATABASE_URL: postgresql://download_manager:download_manager@postgres:5432/image_processing?schema=public
+      REDIS_HOST: redis
+    command: ['sh', '-c', 'node_modules/.bin/prisma migrate deploy && node dist/main.js']
+    volumes:
+      - image_storage:/app/storage
+
+  image-worker:
+    build: ./image-api
+    container_name: download-manager-image-worker
+    restart: unless-stopped
+    depends_on:
+      image-api: { condition: service_started }
+    env_file:
+      - ./image-api/.env.development
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://download_manager:download_manager@postgres:5432/image_processing?schema=public
+      REDIS_HOST: redis
+    command: ['node', 'dist/workers/image.worker.js']
+    volumes:
+      - image_storage:/app/storage
+
+  converter-api:
+    build: ./converter-api
+    container_name: download-manager-converter-api
+    restart: unless-stopped
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    env_file:
+      - ./converter-api/.env.development
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      DATABASE_URL: postgresql://download_manager:download_manager@postgres:5432/file_conversion?schema=public
+      REDIS_HOST: redis
+    command: ['sh', '-c', 'node_modules/.bin/prisma migrate deploy && node dist/main.js']
+    volumes:
+      - converter_storage:/app/storage
+
+  converter-worker:
+    build: ./converter-api
+    container_name: download-manager-converter-worker
+    restart: unless-stopped
+    depends_on:
+      converter-api: { condition: service_started }
+    env_file:
+      - ./converter-api/.env.development
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://download_manager:download_manager@postgres:5432/file_conversion?schema=public
+      REDIS_HOST: redis
+    command: ['node', 'dist/workers/converter.worker.js']
+    volumes:
+      - converter_storage:/app/storage
+
+  web:
+    build: ./web
+    container_name: download-manager-web
+    restart: unless-stopped
+    depends_on:
+      - video-api
+      - image-api
+      - converter-api
+
+  nginx:
+    image: nginx:alpine
+    container_name: download-manager-nginx
+    restart: unless-stopped
+    depends_on:
+      - web
+      - video-api
+      - image-api
+      - converter-api
+    ports:
+      - '80:80'
+    volumes:
+      - ./deploy/nginx/docker.conf:/etc/nginx/conf.d/default.conf:ro
+
+  adminer:
+    image: adminer:latest
+    container_name: download-manager-adminer
+    restart: unless-stopped
+    depends_on:
+      postgres: { condition: service_healthy }
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+      ADMINER_DESIGN: dracula
+    ports:
+      - '${ADMINER_PORT:-8080}:8080'
+    profiles:
+      - tools
+
+volumes:
+  postgres_data:
+    name: download-manager-postgres-data
+  redis_data:
+    name: download-manager-redis-data
+  video_storage:
+    name: download-manager-video-storage
+  image_storage:
+    name: download-manager-image-storage
+  converter_storage:
+    name: download-manager-converter-storage

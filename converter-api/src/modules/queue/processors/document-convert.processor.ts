@@ -5,7 +5,6 @@ import { ConversionEventType, ConversionFileFormat } from '@prisma/client';
 import { QUEUE_NAMES } from '../../../common/constants';
 import { FileConversionJobPayload } from '../../../common/interfaces';
 import { FileConversionJobRepository } from '../../file-converter/repositories/file-conversion-job.repository';
-import { ConversionProgressService } from '../../file-converter/services/conversion-progress.service';
 import { ConversionRouterService } from '../../processing/conversion-router.service';
 import { PdfService } from '../../processing/pdf.service';
 import { LocalStorageService } from '../../storage/local-storage.service';
@@ -34,7 +33,6 @@ export class DocumentConvertProcessor extends WorkerHost {
     private readonly storage: LocalStorageService,
     private readonly router: ConversionRouterService,
     private readonly pdf: PdfService,
-    private readonly progress: ConversionProgressService,
   ) {
     super();
   }
@@ -60,14 +58,8 @@ export class DocumentConvertProcessor extends WorkerHost {
         ConversionEventType.STARTED,
         'Document conversion started',
       );
-      await job.updateProgress(10);
       await this.repo.updateProgress(jobId, 10);
-      this.progress.publish({
-        jobId,
-        status: 'PROCESSING',
-        progress: 10,
-        timestamp: Date.now(),
-      });
+      await job.updateProgress({ jobId, status: 'PROCESSING', progress: 10 });
 
       await this.repo.markConverting(jobId);
       await this.repo.addHistory(
@@ -75,14 +67,12 @@ export class DocumentConvertProcessor extends WorkerHost {
         ConversionEventType.CONVERTING,
         'LibreOffice running',
       );
-      await job.updateProgress(35);
       await this.repo.updateProgress(jobId, 35);
-      this.progress.publish({
+      await job.updateProgress({
         jobId,
         status: 'CONVERTING',
         progress: 35,
         phase: 'LibreOffice rendering document',
-        timestamp: Date.now(),
       });
 
       const outputFileName = buildOutputFileName(
@@ -112,14 +102,13 @@ export class DocumentConvertProcessor extends WorkerHost {
         }
       }
 
-      await job.updateProgress(90);
       await this.repo.updateProgress(jobId, 90);
+      await job.updateProgress({ jobId, status: 'CONVERTING', progress: 90 });
 
       await finalizeJob({
         jobId,
         output: { ...output, fileName: outputFileName },
         repo: this.repo,
-        progress: this.progress,
         logger: this.logger,
       });
     } catch (error) {
@@ -127,13 +116,6 @@ export class DocumentConvertProcessor extends WorkerHost {
       this.logger.error(`Document job ${jobId} failed: ${message}`);
       await this.repo.markFailed(jobId, message);
       await this.repo.addHistory(jobId, ConversionEventType.FAILED, message);
-      this.progress.publish({
-        jobId,
-        status: 'FAILED',
-        progress: 0,
-        errorMessage: message,
-        timestamp: Date.now(),
-      });
       throw error;
     }
   }

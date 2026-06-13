@@ -2,10 +2,13 @@ import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { QUEUE_NAMES } from '../../common/constants';
-import { ImageJobsPersistenceModule } from '../images/image-jobs-persistence.module';
-import { FastOpsProcessor } from './processors/fast-ops.processor';
-import { BackgroundRemoveProcessor } from './processors/background-remove.processor';
 
+/**
+ * HTTP-facing queue wiring: BullMQ connection + queue registration so request
+ * handlers can ENQUEUE image jobs. Processors run in the separate worker
+ * process (see src/worker.module.ts), keeping Sharp / background-removal off
+ * the HTTP event loop.
+ */
 @Module({
   imports: [
     BullModule.forRootAsync({
@@ -36,9 +39,7 @@ import { BackgroundRemoveProcessor } from './processors/background-remove.proces
         },
       },
     ),
-    ImageJobsPersistenceModule,
   ],
-  providers: [FastOpsProcessor, BackgroundRemoveProcessor],
   exports: [BullModule],
 })
 export class QueueModule {}

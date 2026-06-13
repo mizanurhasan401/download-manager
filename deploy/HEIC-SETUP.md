@@ -1,6 +1,6 @@
 # Image Format Support (Sharp)
 
-Raster image conversion for **image-api** and **file-converter** using Sharp. HEIC input and export require system **libheif**.
+Raster image conversion for **image-api** and **converter-api** using Sharp. HEIC input and export require system **libheif**.
 
 ## Supported formats
 
@@ -41,13 +41,13 @@ After installing libheif:
 
 ```bash
 cd image-api && pnpm rebuild sharp
-cd file-converter && pnpm rebuild sharp
+cd converter-api && pnpm rebuild sharp
 ```
 
 Restart:
 
 ```bash
-pm2 restart dm-image-api dm-file-converter
+pm2 restart image-api image-worker converter-api converter-worker
 ```
 
 ## Verify HEIC
@@ -63,6 +63,6 @@ Expected: width, height, format `heif`. On failure, install libheif and rebuild 
 | Service | Operations |
 |---------|------------|
 | image-api | Convert, Resize, Remove background |
-| file-converter | Any supported raster → any other raster (except same format) |
+| converter-api | Any supported raster → any other raster (except same format) |
 
 Document conversions (PDF, DOCX, etc.) are unchanged.

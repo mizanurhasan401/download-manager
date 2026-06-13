@@ -12,35 +12,35 @@ YouTube often blocks datacenter IPs with a bot check. VidGrab passes browser coo
 ## 2. Upload to the VPS
 
 ```bash
-scp cookies.txt deploy@YOUR_VPS:/home/deploy/download-manager/api/cookies.txt
+scp cookies.txt deploy@YOUR_VPS:/home/deploy/download-manager/video-api/cookies.txt
 ```
 
 On the server, restrict permissions:
 
 ```bash
-chmod 600 /home/deploy/download-manager/api/cookies.txt
+chmod 600 /home/deploy/download-manager/video-api/cookies.txt
 ```
 
 ## 3. Configure the API
 
-Edit `deploy/env/api.env`:
+Edit `deploy/env/video-api.env`:
 
 ```env
-YTDLP_COOKIES_FILE=/home/deploy/download-manager/api/cookies.txt
+YTDLP_COOKIES_FILE=/home/deploy/download-manager/video-api/cookies.txt
 ```
 
 Apply env and restart services:
 
 ```bash
 cd /home/deploy/download-manager
-cp deploy/env/api.env api/.env.development
-pm2 restart dm-api dm-api-worker
+cp deploy/env/video-api.env video-api/.env.development
+pm2 restart video-api video-worker
 ```
 
 ## 4. Verify
 
 ```bash
-cd /home/deploy/download-manager/api
+cd /home/deploy/download-manager/video-api
 source .env.development
 yt-dlp --cookies "$YTDLP_COOKIES_FILE" -J "YOUTUBE_URL"
 ```
@@ -55,12 +55,12 @@ curl -X POST https://downloadvideos.work.gd/api/v1/downloads/metadata \
 
 ## 5. Refresh cookies
 
-Cookies expire or stop working when YouTube changes detection. If bot errors return, export fresh cookies and replace `cookies.txt`, then restart `dm-api` and `dm-api-worker`.
+Cookies expire or stop working when YouTube changes detection. If bot errors return, export fresh cookies and replace `cookies.txt`, then restart `video-api` and `video-worker`.
 
 Typical refresh interval: every **2–4 weeks**.
 
 ## Security
 
-- **Never commit** `cookies.txt` to git (it is listed in `api/.gitignore`).
+- **Never commit** `cookies.txt` to git (it is listed in `video-api/.gitignore`).
 - Treat cookies like passwords — they grant access to your Google/YouTube session.
 - Use a dedicated Google account if possible, not your personal one.

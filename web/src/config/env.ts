@@ -1,6 +1,10 @@
+// The frontend talks to a single API gateway. Nginx (prod) and Next.js
+// rewrites (dev) route the sub-paths to each backend service, so the app only
+// needs to know one base URL.
+const apiBase = process.env.NEXT_PUBLIC_API_URL ?? '/api';
+
 export const env = {
-  apiUrl: process.env.NEXT_PUBLIC_API_URL ?? '/api/v1',
-  imageApiUrl: process.env.NEXT_PUBLIC_IMAGE_API_URL ?? '/images/api/v1',
-  fileConverterApiUrl:
-    process.env.NEXT_PUBLIC_FILE_CONVERTER_API_URL ?? '/convert/api/v1',
+  apiUrl: `${apiBase}/videos`,
+  imageApiUrl: `${apiBase}/images`,
+  fileConverterApiUrl: `${apiBase}/convert`,
 } as const;

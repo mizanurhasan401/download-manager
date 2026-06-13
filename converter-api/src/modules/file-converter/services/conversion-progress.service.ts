@@ -5,7 +5,8 @@ import {
   OnModuleInit,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { QueueEvents } from 'bullmq';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue, QueueEvents } from 'bullmq';
 import { Observable, Subject } from 'rxjs';
 import { filter } from 'rxjs/operators';
 import { ConversionJobStatus } from '@prisma/client';
@@ -28,22 +29,19 @@ export interface ConversionProgressEvent {
   timestamp: number;
 }
 
-const QUEUE_NAMES_TO_OBSERVE = [
-  QUEUE_NAMES.IMAGE_CONVERT,
-  QUEUE_NAMES.DOCUMENT_CONVERT,
-] as const;
-
 /**
- * Live progress bridge between BullMQ workers and SSE clients.
+ * Live progress bridge between the BullMQ WORKER process and SSE clients in
+ * this HTTP process.
  *
- * The processor publishes its own granular events via `publish(...)`, which is
- * the primary signal. We also subscribe to native BullMQ `QueueEvents`
- * (`completed`, `failed`) for both queues as a safety net — guaranteeing that
- * even if a processor crashes mid-job, the SSE channel for that job still
- * resolves to a terminal state.
+ * Because processors run in a separate process, all progress crosses over
+ * through Redis: the worker reports granular progress via `job.updateProgress`
+ * (carrying the DB jobId + status + phase), and we relay those plus the native
+ * `completed`/`failed` events onto an in-process RxJS subject the SSE endpoint
+ * observes. Queue job ids are resolved back to DB job ids so subscribers keyed
+ * on the DB id receive every event.
  *
- * Latest event per job is cached for ~30s so clients connecting after a
- * terminal state can immediately receive it before the cache expires.
+ * Latest event per job is cached for ~30s so clients connecting right after a
+ * terminal state still receive it.
  */
 @Injectable()
 export class ConversionProgressService
@@ -54,32 +52,34 @@ export class ConversionProgressService
   private readonly latestByJob = new Map<string, ConversionProgressEvent>();
   private queueEvents: QueueEvents[] = [];
 
-  constructor(private readonly configService: ConfigService) {}
+  constructor(
+    private readonly configService: ConfigService,
+    @InjectQueue(QUEUE_NAMES.IMAGE_CONVERT)
+    private readonly imageQueue: Queue,
+    @InjectQueue(QUEUE_NAMES.DOCUMENT_CONVERT)
+    private readonly documentQueue: Queue,
+  ) {}
 
   async onModuleInit(): Promise<void> {
     const host = this.configService.getOrThrow<string>('redis.host');
     const port = this.configService.getOrThrow<number>('redis.port');
 
-    for (const name of QUEUE_NAMES_TO_OBSERVE) {
+    const targets: Array<{ name: string; queue: Queue }> = [
+      { name: QUEUE_NAMES.IMAGE_CONVERT, queue: this.imageQueue },
+      { name: QUEUE_NAMES.DOCUMENT_CONVERT, queue: this.documentQueue },
+    ];
+
+    for (const { name, queue } of targets) {
       const events = new QueueEvents(name, { connection: { host, port } });
 
+      events.on('progress', ({ data }) => this.handleProgress(data));
+
       events.on('completed', ({ jobId }) => {
-        this.publish({
-          jobId,
-          status: 'COMPLETED',
-          progress: 100,
-          timestamp: Date.now(),
-        });
+        void this.handleTerminal(queue, jobId, 'COMPLETED');
       });
 
       events.on('failed', ({ jobId, failedReason }) => {
-        this.publish({
-          jobId,
-          status: 'FAILED',
-          progress: 0,
-          errorMessage: failedReason,
-          timestamp: Date.now(),
-        });
+        void this.handleTerminal(queue, jobId, 'FAILED', failedReason);
       });
 
       await events.waitUntilReady();
@@ -106,19 +106,66 @@ export class ConversionProgressService
   }
 
   /**
-   * Push a progress event onto the bus.
-   * Called by processors after every status transition so SSE clients see
-   * coarse-grained transitions in addition to numeric progress.
+   * Push a progress event onto the bus. Used by the HTTP service to emit the
+   * immediate "QUEUED" event on enqueue, and internally to relay worker events.
    */
   publish(event: ConversionProgressEvent): void {
     this.latestByJob.set(event.jobId, event);
     this.subject.next(event);
 
     if (event.status === 'COMPLETED' || event.status === 'FAILED') {
-      // Evict cached terminal events shortly after — long-poll clients still
-      // get them via the DB record, while keeping memory bounded.
       setTimeout(() => this.latestByJob.delete(event.jobId), 30_000);
     }
+  }
+
+  /** Relay a granular progress payload reported by the worker via Redis. */
+  private handleProgress(data: unknown): void {
+    if (!data || typeof data !== 'object') return;
+    const event = data as Partial<ConversionProgressEvent>;
+    if (!event.jobId || !event.status) return;
+
+    this.publish({
+      jobId: event.jobId,
+      status: event.status,
+      progress: event.progress ?? 0,
+      phase: event.phase,
+      timestamp: Date.now(),
+    });
+  }
+
+  /** Relay a terminal event, resolving the queue job id to the DB job id. */
+  private async handleTerminal(
+    queue: Queue,
+    queueJobId: string,
+    status: 'COMPLETED' | 'FAILED',
+    failedReason?: string,
+  ): Promise<void> {
+    const jobId = await this.resolveJobId(queue, queueJobId);
+    this.publish({
+      jobId,
+      status,
+      progress: status === 'COMPLETED' ? 100 : 0,
+      errorMessage: failedReason,
+      timestamp: Date.now(),
+    });
+  }
+
+  private async resolveJobId(
+    queue: Queue,
+    queueJobId: string,
+  ): Promise<string> {
+    try {
+      const job = await queue.getJob(queueJobId);
+      const dbJobId = (job?.data as { jobId?: string } | undefined)?.jobId;
+      if (dbJobId) return dbJobId;
+    } catch (error) {
+      this.logger.warn(
+        `Could not resolve jobId for queue job ${queueJobId}: ${
+          error instanceof Error ? error.message : 'unknown error'
+        }`,
+      );
+    }
+    return queueJobId;
   }
 
   /** Convert a Prisma job status to the SSE-facing status string. */

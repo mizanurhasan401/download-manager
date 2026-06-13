@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-COMPOSE_FILE="${ROOT}/api/docker-compose.yml"
+COMPOSE_FILE="${ROOT}/docker-compose.yml"
 INIT_SQL="${ROOT}/deploy/init-databases.sql"
 
 log() { printf '\033[1;34m[dev]\033[0m %s\n' "$*"; }
@@ -13,13 +13,13 @@ require_cmd() {
 }
 
 ensure_ytdlp() {
-  local bin="${ROOT}/api/bin/yt-dlp"
+  local bin="${ROOT}/video-api/bin/yt-dlp"
   if [[ -x "${bin}" ]] && "${bin}" --version >/dev/null 2>&1; then
     return
   fi
 
   log "Installing yt-dlp standalone binary..."
-  (cd "${ROOT}/api" && bash scripts/setup-tools.sh)
+  (cd "${ROOT}/video-api" && bash scripts/setup-tools.sh)
 }
 
 start_infra() {
@@ -48,7 +48,7 @@ run_migrations() {
   log "Running database migrations..."
 
   (
-    cd "${ROOT}/api"
+    cd "${ROOT}/video-api"
     set -a && source .env.development && set +a
     pnpm prisma:migrate
   )
@@ -60,7 +60,7 @@ run_migrations() {
   )
 
   (
-    cd "${ROOT}/file-converter"
+    cd "${ROOT}/converter-api"
     set -a && source .env.development && set +a
     pnpm prisma:migrate
   )
@@ -102,16 +102,18 @@ main() {
   trap cleanup EXIT INT TERM
 
   log "Starting all services (Ctrl+C to stop)..."
-  log "  API            http://localhost:3000"
-  log "  Web            http://localhost:3001"
-  log "  Image API      http://localhost:3100"
-  log "  File Converter http://localhost:3200"
+  log "  video-api      http://localhost:3000"
+  log "  web            http://localhost:3001"
+  log "  image-api      http://localhost:3100"
+  log "  converter-api  http://localhost:3200"
 
-  run_service api        api             pnpm start:dev
-  run_service worker     api             pnpm start:worker:dev
-  run_service web        web             pnpm dev
-  run_service image-api  image-api       pnpm start:dev
-  run_service converter  file-converter  pnpm start:dev
+  run_service video-api         video-api      pnpm start:dev
+  run_service video-worker      video-api      pnpm start:worker:dev
+  run_service web               web            pnpm dev
+  run_service image-api         image-api      pnpm start:dev
+  run_service image-worker      image-api      pnpm start:worker:dev
+  run_service converter-api     converter-api  pnpm start:dev
+  run_service converter-worker  converter-api  pnpm start:worker:dev
 
   wait
 }

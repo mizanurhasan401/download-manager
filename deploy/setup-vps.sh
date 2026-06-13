@@ -98,8 +98,8 @@ start_docker_services() {
 
 install_env_files() {
   log "Installing environment files..."
-  cp "${DEPLOY_DIR}/env/api.env" "${APP_ROOT}/api/.env.development"
-  cp "${DEPLOY_DIR}/env/file-converter.env" "${APP_ROOT}/file-converter/.env.development"
+  cp "${DEPLOY_DIR}/env/video-api.env" "${APP_ROOT}/video-api/.env.development"
+  cp "${DEPLOY_DIR}/env/converter-api.env" "${APP_ROOT}/converter-api/.env.development"
   cp "${DEPLOY_DIR}/env/image-api.env" "${APP_ROOT}/image-api/.env.development"
 
   sed -e "s|https://downloadvideos.work.gd|${PUBLIC_URL}|g" \
@@ -113,15 +113,15 @@ install_env_files() {
 build_services() {
   export CI=true
 
-  log "Building API..."
-  cd "${APP_ROOT}/api"
+  log "Building video-api..."
+  cd "${APP_ROOT}/video-api"
   pnpm install --frozen-lockfile
   pnpm run prisma:migrate:prod
   pnpm run build
   mkdir -p storage/videos storage/audio storage/thumbnails storage/temp storage/merged
 
-  log "Building file-converter..."
-  cd "${APP_ROOT}/file-converter"
+  log "Building converter-api..."
+  cd "${APP_ROOT}/converter-api"
   pnpm install --frozen-lockfile
   set -a && source .env.development && set +a
   pnpm run prisma:migrate:prod
@@ -179,18 +179,18 @@ verify_deployment() {
   log "Verifying services..."
   sleep 5
   curl -sf "http://127.0.0.1:3000/api/v1/health" >/dev/null \
-    && log "API health: OK" \
-    || log "API health: pending (check pm2 logs dm-api)"
+    && log "video-api health: OK" \
+    || log "video-api health: pending (check pm2 logs video-api)"
   curl -sf "http://127.0.0.1:3001" >/dev/null \
     && log "Web: OK" \
-    || log "Web: pending (check pm2 logs dm-web)"
-  curl -sf -H "Host: ${SITE_DOMAIN}" "http://127.0.0.1/api/v1/health" >/dev/null \
+    || log "Web: pending (check pm2 logs web)"
+  curl -sf -H "Host: ${SITE_DOMAIN}" "http://127.0.0.1/api/videos/health" >/dev/null \
     && log "Nginx proxy: OK" \
     || log "Nginx proxy: pending"
 }
 
 main() {
-  [[ -d "${APP_ROOT}/api" ]] || die "Project not found at ${APP_ROOT}"
+  [[ -d "${APP_ROOT}/video-api" ]] || die "Project not found at ${APP_ROOT}"
   [[ -d "${DEPLOY_DIR}" ]] || die "Deploy folder missing at ${DEPLOY_DIR}"
 
   require_cmd docker
@@ -209,7 +209,7 @@ main() {
   log "Deployment complete."
   log "Site URL: ${PUBLIC_URL}"
   log "Domain: ${SITE_DOMAIN}"
-  log "YouTube cookies: see deploy/YOUTUBE-COOKIES.md (set YTDLP_COOKIES_FILE in deploy/env/api.env)"
+  log "YouTube cookies: see deploy/YOUTUBE-COOKIES.md (set YTDLP_COOKIES_FILE in deploy/env/video-api.env)"
   log "HEIC images: see deploy/HEIC-SETUP.md (libheif installed; sharp rebuilt on deploy)"
   log "PM2 status: pm2 status"
 }

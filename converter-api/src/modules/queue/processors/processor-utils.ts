@@ -11,7 +11,6 @@ import {
   stripExtension,
 } from '../../../common/utils';
 import { FileConversionJobRepository } from '../../file-converter/repositories/file-conversion-job.repository';
-import { ConversionProgressService } from '../../file-converter/services/conversion-progress.service';
 import { LocalStorageService } from '../../storage/local-storage.service';
 
 export function buildOutputFileName(
@@ -31,8 +30,11 @@ export function buildOutputPath(
 }
 
 /**
- * Finalize a successful conversion: persist the OUTPUT file row, push the
- * terminal SSE event, and append a COMPLETED history entry.
+ * Finalize a successful conversion: persist the OUTPUT file row, mark the job
+ * completed, and append a COMPLETED history entry.
+ *
+ * The terminal SSE event is emitted by ConversionProgressService from the
+ * BullMQ `completed` event (Redis), so processors never publish it directly.
  *
  * Pulled into a shared helper so future processors (chunked PDF tasks, etc.)
  * cannot accidentally diverge from the canonical completion sequence.
@@ -41,10 +43,9 @@ export async function finalizeJob(options: {
   jobId: string;
   output: ConvertedFileInfo;
   repo: FileConversionJobRepository;
-  progress: ConversionProgressService;
   logger: Logger;
 }): Promise<void> {
-  const { jobId, output, repo, progress, logger } = options;
+  const { jobId, output, repo, logger } = options;
 
   await repo.addFile({
     jobId,
@@ -66,13 +67,6 @@ export async function finalizeJob(options: {
       outputFormat: output.format,
     },
   );
-
-  progress.publish({
-    jobId,
-    status: 'COMPLETED',
-    progress: 100,
-    timestamp: Date.now(),
-  });
 
   logger.log(`Job ${jobId} completed → ${path.basename(output.outputPath)}`);
 }

@@ -17,8 +17,9 @@ RUN pnpm install --frozen-lockfile
 COPY nest-cli.json tsconfig.json tsconfig.build.json ./
 COPY src ./src/
 
-RUN pnpm run build \
-  && pnpm prune --prod --ignore-scripts
+# Keep dev deps (incl. the Prisma CLI) so the container can run
+# `prisma migrate deploy` on startup.
+RUN pnpm run build
 
 FROM node:22-alpine AS production
 

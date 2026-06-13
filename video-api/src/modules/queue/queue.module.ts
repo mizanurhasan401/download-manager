@@ -2,16 +2,15 @@ import { Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { QUEUE_NAMES } from '../../common/constants';
-import { DownloadProcessor } from './processors/download.processor';
-import { DownloadPersistenceModule } from '../downloads/download-persistence.module';
-import { PlaylistPersistenceModule } from '../playlists/playlist-persistence.module';
-import { VideosModule } from '../videos/videos.module';
 
+/**
+ * HTTP-facing queue wiring: registers the BullMQ connection and the video
+ * download queue so request handlers can ENQUEUE jobs. Job consumption lives
+ * in the separate worker process (see src/worker.module.ts) — the HTTP process
+ * never runs processors, so heavy downloads can never block request handling.
+ */
 @Module({
   imports: [
-    DownloadPersistenceModule,
-    PlaylistPersistenceModule,
-    VideosModule,
     BullModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -35,7 +34,6 @@ import { VideosModule } from '../videos/videos.module';
       name: QUEUE_NAMES.VIDEO_DOWNLOAD,
     }),
   ],
-  providers: [DownloadProcessor],
   exports: [BullModule],
 })
 export class QueueModule {}

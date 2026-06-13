@@ -8,18 +8,19 @@ const nextConfig: NextConfig = {
     const fileConverterTarget =
       process.env.FILE_CONVERTER_PROXY_TARGET ?? 'http://localhost:3200';
 
+    // Single API gateway in dev: /api/<service>/* → <service>/api/v1/*
     return [
       {
-        source: '/api/v1/:path*',
+        source: '/api/videos/:path*',
         destination: `${apiTarget}/api/v1/:path*`,
       },
       {
-        source: '/images/:path*',
-        destination: `${imageApiTarget}/:path*`,
+        source: '/api/images/:path*',
+        destination: `${imageApiTarget}/api/v1/:path*`,
       },
       {
-        source: '/convert/:path*',
-        destination: `${fileConverterTarget}/:path*`,
+        source: '/api/convert/:path*',
+        destination: `${fileConverterTarget}/api/v1/:path*`,
       },
     ];
   },

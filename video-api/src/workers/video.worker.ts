@@ -1,16 +1,16 @@
 import { NestFactory } from '@nestjs/core';
 import { Logger } from 'nestjs-pino';
-import { AppModule } from '../app.module';
+import { WorkerModule } from '../worker.module';
 
 async function bootstrapWorker(): Promise<void> {
-  const app = await NestFactory.createApplicationContext(AppModule, {
+  const app = await NestFactory.createApplicationContext(WorkerModule, {
     bufferLogs: true,
   });
 
   app.useLogger(app.get(Logger));
 
   const logger = app.get(Logger);
-  logger.log('Download worker started and listening for jobs');
+  logger.log('Video download worker started and listening for jobs');
 
   process.on('SIGTERM', async () => {
     logger.log('SIGTERM received, shutting down worker');

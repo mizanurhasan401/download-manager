@@ -1,6 +1,5 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { Job } from 'bullmq';
 import { promises as fs } from 'fs';
 import { ImageEventType } from '@prisma/client';
@@ -30,11 +29,8 @@ export class FastOpsProcessor extends WorkerHost {
     private readonly repo: ImageJobRepository,
     private readonly storage: LocalStorageService,
     private readonly sharp: SharpService,
-    // ConfigService kept for future tuning hooks
-    _configService: ConfigService,
   ) {
     super();
-    void _configService;
   }
 
   async process(job: Job<ImageJobPayload>): Promise<void> {

@@ -5,7 +5,6 @@ import { ConversionEventType } from '@prisma/client';
 import { QUEUE_NAMES } from '../../../common/constants';
 import { FileConversionJobPayload } from '../../../common/interfaces';
 import { FileConversionJobRepository } from '../../file-converter/repositories/file-conversion-job.repository';
-import { ConversionProgressService } from '../../file-converter/services/conversion-progress.service';
 import { ConversionRouterService } from '../../processing/conversion-router.service';
 import { LocalStorageService } from '../../storage/local-storage.service';
 import {
@@ -30,7 +29,6 @@ export class ImageConvertProcessor extends WorkerHost {
     private readonly repo: FileConversionJobRepository,
     private readonly storage: LocalStorageService,
     private readonly router: ConversionRouterService,
-    private readonly progress: ConversionProgressService,
   ) {
     super();
   }
@@ -56,14 +54,8 @@ export class ImageConvertProcessor extends WorkerHost {
         ConversionEventType.STARTED,
         'Image conversion started',
       );
-      await job.updateProgress(10);
       await this.repo.updateProgress(jobId, 10);
-      this.progress.publish({
-        jobId,
-        status: 'PROCESSING',
-        progress: 10,
-        timestamp: Date.now(),
-      });
+      await job.updateProgress({ jobId, status: 'PROCESSING', progress: 10 });
 
       await this.repo.markConverting(jobId);
       await this.repo.addHistory(
@@ -71,14 +63,12 @@ export class ImageConvertProcessor extends WorkerHost {
         ConversionEventType.CONVERTING,
         'Sharp encoder running',
       );
-      await job.updateProgress(40);
       await this.repo.updateProgress(jobId, 40);
-      this.progress.publish({
+      await job.updateProgress({
         jobId,
         status: 'CONVERTING',
         progress: 40,
         phase: 'Encoding image',
-        timestamp: Date.now(),
       });
 
       const outputFileName = buildOutputFileName(
@@ -95,14 +85,13 @@ export class ImageConvertProcessor extends WorkerHost {
         parameters,
       });
 
-      await job.updateProgress(90);
       await this.repo.updateProgress(jobId, 90);
+      await job.updateProgress({ jobId, status: 'CONVERTING', progress: 90 });
 
       await finalizeJob({
         jobId,
         output: { ...output, fileName: outputFileName },
         repo: this.repo,
-        progress: this.progress,
         logger: this.logger,
       });
     } catch (error) {
@@ -110,13 +99,6 @@ export class ImageConvertProcessor extends WorkerHost {
       this.logger.error(`Image job ${jobId} failed: ${message}`);
       await this.repo.markFailed(jobId, message);
       await this.repo.addHistory(jobId, ConversionEventType.FAILED, message);
-      this.progress.publish({
-        jobId,
-        status: 'FAILED',
-        progress: 0,
-        errorMessage: message,
-        timestamp: Date.now(),
-      });
       throw error;
     }
   }

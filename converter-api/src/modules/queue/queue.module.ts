@@ -2,11 +2,13 @@ import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { QUEUE_NAMES } from '../../common/constants';
-import { FileConverterModule } from '../file-converter/file-converter.module';
-import { FileJobsPersistenceModule } from '../file-converter/file-jobs-persistence.module';
-import { DocumentConvertProcessor } from './processors/document-convert.processor';
-import { ImageConvertProcessor } from './processors/image-convert.processor';
 
+/**
+ * HTTP-facing queue wiring: BullMQ connection + queue registration so request
+ * handlers can ENQUEUE conversion jobs. Processors run in the separate worker
+ * process (see src/worker.module.ts), keeping LibreOffice / Sharp work off the
+ * HTTP event loop.
+ */
 @Module({
   imports: [
     BullModule.forRootAsync({
@@ -37,10 +39,7 @@ import { ImageConvertProcessor } from './processors/image-convert.processor';
         },
       },
     ),
-    FileJobsPersistenceModule,
-    FileConverterModule,
   ],
-  providers: [ImageConvertProcessor, DocumentConvertProcessor],
   exports: [BullModule],
 })
 export class QueueModule {}
