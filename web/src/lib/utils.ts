@@ -1,5 +1,6 @@
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { env } from '@/config/env';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -25,9 +26,8 @@ export function formatDuration(seconds?: number): string {
 }
 
 export function getDownloadFileUrl(jobId: string, inline = false): string {
-  const base = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000/api/v1';
   const query = inline ? '?inline=true' : '';
-  return `${base}/downloads/file/${jobId}${query}`;
+  return `${env.apiUrl}/downloads/file/${jobId}${query}`;
 }
 
 export function getDownloadPreviewUrl(jobId: string): string {
@@ -35,8 +35,7 @@ export function getDownloadPreviewUrl(jobId: string): string {
 }
 
 export function getDownloadProgressStreamUrl(jobId: string): string {
-  const base = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000/api/v1';
-  return `${base}/downloads/progress/${jobId}`;
+  return `${env.apiUrl}/downloads/progress/${jobId}`;
 }
 
 export function formatBytesPerSec(bytesPerSec?: number | null): string {

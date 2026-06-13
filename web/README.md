@@ -11,12 +11,12 @@ Next.js frontend for the VidGrab video downloader. Paste a supported URL, pick a
 ## Setup
 
 ```bash
-cd apps/web
-cp .env.local.example .env.local
+cd web
+cp .env.local.example .env.local   # optional
 pnpm install
 ```
 
-Ensure the API is reachable at the URL in `.env.local` (default: `http://localhost:3000/api/v1`).
+Ensure the VidGrab API is running on port **3000** (see [`api/README.md`](../api/README.md)). The web app proxies `/api/v1/*` to it automatically in dev.
 
 ## Development
 
@@ -24,7 +24,7 @@ Ensure the API is reachable at the URL in `.env.local` (default: `http://localho
 pnpm dev
 ```
 
-Open [http://localhost:3001](http://localhost:3001) (or the port Next.js assigns).
+Open [http://localhost:3001](http://localhost:3001). Or run everything with `./dev.sh` from the repo root.
 
 ## Build
 
@@ -49,7 +49,7 @@ YouTube, Facebook, Instagram, TikTok, and Vimeo.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `NEXT_PUBLIC_API_URL` | `http://localhost:3000/api/v1` | Base URL for the VidGrab API |
+| `NEXT_PUBLIC_API_URL` | `/api/v1` | Base URL for the VidGrab API (proxied to port 3000 in dev) |
 
 ## Stack
 

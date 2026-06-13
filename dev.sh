@@ -12,6 +12,16 @@ require_cmd() {
   command -v "$1" >/dev/null 2>&1 || die "Missing required command: $1"
 }
 
+ensure_ytdlp() {
+  local bin="${ROOT}/api/bin/yt-dlp"
+  if [[ -x "${bin}" ]] && "${bin}" --version >/dev/null 2>&1; then
+    return
+  fi
+
+  log "Installing yt-dlp standalone binary..."
+  (cd "${ROOT}/api" && bash scripts/setup-tools.sh)
+}
+
 start_infra() {
   log "Starting Postgres and Redis..."
   docker compose -f "${COMPOSE_FILE}" up -d postgres redis
@@ -86,6 +96,7 @@ main() {
   require_cmd pnpm
 
   start_infra
+  ensure_ytdlp
   run_migrations
 
   trap cleanup EXIT INT TERM

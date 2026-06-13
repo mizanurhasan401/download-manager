@@ -15,6 +15,14 @@ const MAX_MESSAGE_LENGTH = 200;
 export function normalizeYtDlpError(stderr: string): NormalizedYtDlpError {
   const text = stderr.trim();
 
+  if (/unsupported version of Python|Only Python versions 3\.10/i.test(text)) {
+    return {
+      code: 'UNKNOWN',
+      message:
+        'yt-dlp needs a standalone binary on this machine. Run `cd api && pnpm run setup:tools`, then restart the API.',
+    };
+  }
+
   if (/Sign in to confirm you're not a bot/i.test(text)) {
     return {
       code: 'YOUTUBE_BOT_CHECK',

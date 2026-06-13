@@ -17,7 +17,7 @@ Production-grade NestJS backend for a multi-platform video downloader.
 pnpm run setup:tools
 ```
 
-This downloads `yt-dlp` to `./bin/yt-dlp` and sets `YTDLP_PATH=./bin/yt-dlp` in `.env.development`.
+This downloads a **standalone** `yt-dlp` binary to `./bin/yt-dlp` (macOS/Linux builds that do not rely on the system Python). Set `YTDLP_PATH=./bin/yt-dlp` in `.env.development`.
 
 **FFmpeg** (system package, required for merge/audio conversion):
 

@@ -7,8 +7,22 @@ YTDLP_BIN="${BIN_DIR}/yt-dlp"
 
 mkdir -p "${BIN_DIR}"
 
-echo "Downloading yt-dlp..."
-curl -fsSL https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o "${YTDLP_BIN}"
+case "$(uname -s)" in
+  Darwin)
+    YTDLP_ASSET="yt-dlp_macos"
+    ;;
+  Linux)
+    YTDLP_ASSET="yt-dlp_linux"
+    ;;
+  *)
+    YTDLP_ASSET="yt-dlp"
+    ;;
+esac
+
+YTDLP_URL="https://github.com/yt-dlp/yt-dlp/releases/latest/download/${YTDLP_ASSET}"
+
+echo "Downloading ${YTDLP_ASSET} (standalone, no system Python required)..."
+curl -fsSL "${YTDLP_URL}" -o "${YTDLP_BIN}"
 chmod +x "${YTDLP_BIN}"
 
 echo "yt-dlp installed: $("${YTDLP_BIN}" --version)"
@@ -16,7 +30,8 @@ echo "yt-dlp installed: $("${YTDLP_BIN}" --version)"
 if ! command -v ffmpeg >/dev/null 2>&1; then
   echo ""
   echo "ffmpeg is not installed. Install it with:"
-  echo "  sudo apt install -y ffmpeg"
+  echo "  macOS:  brew install ffmpeg"
+  echo "  Linux:  sudo apt install -y ffmpeg"
   echo ""
   echo "Then set FFMPEG_PATH in .env.development if needed."
 else
